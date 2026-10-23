@@ -426,8 +426,9 @@ export function ImageGenerationSettings() {
         setStatus(null);
         setIsTesting(true);
         try {
+            const isNaiFamily = settings.provider === "novelai" || settings.provider === "novelai-relay";
             const result = await generateImageFromConfiguredApi({
-                description: settings.provider === "novelai"
+                description: isNaiFamily
                     ? "1girl, solo, upper body, white coffee cup on the wooden table, soft window light"
                     : "一张放在桌面上的白色咖啡杯，柔和自然光，真实照片风格",
                 settings: { ...settings, enabled: true },
