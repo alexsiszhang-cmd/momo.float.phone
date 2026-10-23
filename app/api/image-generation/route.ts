@@ -208,7 +208,8 @@ async function runNovelAiGeneration(input: ImageGenerationRequest): Promise<{ st
 
     const { width, height } = getNovelAiResolution(input.size);
 
-    const url = "https://image.novelai.net/ai/generate-image";
+    const baseUrl = input.baseUrl?.trim() ? input.baseUrl.trim().replace(/\/+$/, "") : "https://image.novelai.net";
+    const url = baseUrl.endsWith("/ai/generate-image") ? baseUrl : `${baseUrl}/ai/generate-image`;
     const headers: Record<string, string> = {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
@@ -281,6 +282,22 @@ async function runNovelAiGeneration(input: ImageGenerationRequest): Promise<{ st
 
     if (contentType.startsWith("image/")) {
       return { status: 200, body: { b64: buffer.toString("base64"), mimeType: contentType } };
+    }
+
+    if (contentType.includes("application/json") || contentType.includes("text/json")) {
+      try {
+        const json = JSON.parse(buffer.toString("utf-8"));
+        const extracted = extractFromObject(json);
+        if (extracted) {
+          if (extracted.kind === "url") {
+            const downloaded = await fetchImageUrl(extracted.url);
+            return { status: 200, body: { ...downloaded, revisedPrompt: extracted.revisedPrompt } };
+          }
+          return { status: 200, body: { b64: extracted.b64, mimeType: extracted.mimeType || "image/png", revisedPrompt: extracted.revisedPrompt } };
+        }
+      } catch {
+        // ignore json parse error, fall through
+      }
     }
 
     return { status: 502, body: { error: `NovelAI 返回了未知格式的响应 (${contentType || "unknown"})` } };

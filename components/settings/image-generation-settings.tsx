@@ -374,7 +374,7 @@ export function ImageGenerationSettings() {
         }
         setIsFetchingNaiModels(true);
         try {
-            const fetched = await fetchNovelAiModels(naiSettings.apiKey);
+            const fetched = await fetchNovelAiModels(naiSettings.apiKey, naiSettings.baseUrl);
             setNaiModels(fetched);
             setNaiTokenStatus({
                 success: true,
@@ -665,7 +665,21 @@ export function ImageGenerationSettings() {
                     /* --- NovelAI 配置面板 --- */
                     <>
                         <div className="flex flex-col gap-1">
-                            <label className="menu-desc ml-1">NovelAI API Token</label>
+                            <label className="menu-desc ml-1">接口地址 (Base URL)</label>
+                            <Input
+                                type="text"
+                                value={naiSettings.baseUrl || ""}
+                                onChange={(event) => {
+                                    updateNovelAi({ baseUrl: event.target.value });
+                                    setNaiTokenStatus(null);
+                                }}
+                                placeholder="https://image.novelai.net"
+                            />
+                            <span className="menu-desc ml-1">留空或填写官方地址 https://image.novelai.net；如使用中转站/反向代理请填写对应的接口前缀。</span>
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                            <label className="menu-desc ml-1">NovelAI API Token / 密钥</label>
                             <Input
                                 type="password"
                                 value={naiSettings.apiKey}
@@ -673,9 +687,9 @@ export function ImageGenerationSettings() {
                                     updateNovelAi({ apiKey: event.target.value });
                                     setNaiTokenStatus(null);
                                 }}
-                                placeholder="pst-..."
+                                placeholder="pst-... 或中转站 Key"
                             />
-                            <span className="menu-desc ml-1">可在 NovelAI 官网 Account 页面获取 Persistent API Token。</span>
+                            <span className="menu-desc ml-1">官方为 Persistent API Token (pst-...)，中转站填写对应提供的密钥。</span>
                             {naiTokenStatus && (
                                 <div role={naiTokenStatus.success ? "status" : "alert"} className="mt-2">
                                     <Alert variant={naiTokenStatus.success ? "success" : "danger"}>

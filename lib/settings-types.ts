@@ -222,6 +222,7 @@ export type NovelAiPreset = {
 
 export type NovelAiSettings = {
     apiKey: string;
+    baseUrl?: string;
     requestMode?: ImageGenerationRequestMode;
     activePresetId: string;
     presets: NovelAiPreset[];
