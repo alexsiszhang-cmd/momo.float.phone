@@ -277,7 +277,6 @@ export function ImageGenerationSettings() {
         const activePreset = presets.find(p => p.id === nai?.activePresetId) || presets[0];
         return {
             apiKey: nai?.apiKey || "",
-            baseUrl: nai?.baseUrl || "",
             requestMode: nai?.requestMode || settings.requestMode,
             activePresetId: activePreset.id,
             presets,
@@ -290,7 +289,6 @@ export function ImageGenerationSettings() {
             ...settings,
             novelai: {
                 apiKey: naiSettings.apiKey,
-                baseUrl: naiSettings.baseUrl,
                 requestMode: naiSettings.requestMode,
                 activePresetId: naiSettings.activePresetId,
                 presets: naiSettings.presets,
@@ -298,6 +296,29 @@ export function ImageGenerationSettings() {
             },
         });
     }, [naiSettings, persist, settings]);
+
+    const naiRelaySettings = useMemo(() => {
+        const relay = settings.novelaiRelay;
+        return {
+            apiKey: relay?.apiKey || "",
+            baseUrl: relay?.baseUrl || "https://api.openai.com/v1",
+            model: relay?.model || "nai-diffusion-4-curated-preview",
+            requestMode: relay?.requestMode || "server",
+        };
+    }, [settings.novelaiRelay]);
+
+    const updateNovelAiRelay = useCallback((patch: Partial<import("@/lib/settings-types").NovelAiRelaySettings>) => {
+        persist({
+            ...settings,
+            novelaiRelay: {
+                apiKey: naiRelaySettings.apiKey,
+                baseUrl: naiRelaySettings.baseUrl,
+                model: naiRelaySettings.model,
+                requestMode: naiRelaySettings.requestMode,
+                ...patch,
+            },
+        });
+    }, [naiRelaySettings, persist, settings]);
 
     const updateActivePreset = useCallback((patch: Partial<NovelAiPreset>) => {
         const nextPresets = naiSettings.presets.map(p => {
@@ -376,7 +397,7 @@ export function ImageGenerationSettings() {
         }
         setIsFetchingNaiModels(true);
         try {
-            const fetched = await fetchNovelAiModels(naiSettings.apiKey, naiSettings.baseUrl);
+            const fetched = await fetchNovelAiModels(naiSettings.apiKey);
             setNaiModels(fetched);
             setNaiTokenStatus({
                 success: true,
@@ -640,11 +661,12 @@ export function ImageGenerationSettings() {
                     <Select
                         value={settings.provider || "openai"}
                         onChange={(event) => updateSettings({
-                            provider: event.target.value as "openai" | "novelai",
+                            provider: event.target.value as ImageGenerationSettingsType["provider"],
                         })}
                     >
                         <option value="openai">OpenAI 兼容 (通用模型 / DALL-E / Flux / SD 中转等)</option>
                         <option value="novelai">NovelAI 原生接口 (官方 API)</option>
+                        <option value="novelai-relay">NovelAI (OpenAI 兼容中转 - 推荐中转站使用)</option>
                     </Select>
                 </div>
 
@@ -663,44 +685,82 @@ export function ImageGenerationSettings() {
                     </div>
                 )}
 
-                {settings.provider === "novelai" ? (
-                    /* --- NovelAI 配置面板 --- */
+                {settings.provider === "novelai-relay" && (
+                    /* --- NovelAI (OpenAI 兼容中转) 专属面板 --- */
                     <>
                         <div className="flex flex-col gap-1">
-                            <label className="menu-desc ml-1">接口地址 (Base URL)</label>
+                            <label className="menu-desc ml-1">中转站接口地址 (Base URL)</label>
                             <Input
                                 type="text"
-                                value={naiSettings.baseUrl || ""}
-                                onChange={(event) => {
-                                    updateNovelAi({ baseUrl: event.target.value });
-                                    setNaiTokenStatus(null);
-                                }}
-                                placeholder="https://image.novelai.net"
+                                value={naiRelaySettings.baseUrl}
+                                onChange={(event) => updateNovelAiRelay({ baseUrl: event.target.value })}
+                                placeholder="https://api.kbq.de5.net/v1"
                             />
-                            <span className="menu-desc ml-1">留空或填写官方地址 https://image.novelai.net；如使用中转站/反向代理请填写对应的接口前缀。</span>
+                            <span className="menu-desc ml-1">填写中转站提供的 OpenAI 兼容接口地址（通常以 /v1 结尾）。</span>
                         </div>
 
                         <div className="flex flex-col gap-1">
-                            <label className="menu-desc ml-1">NovelAI API Token / 密钥</label>
+                            <label className="menu-desc ml-1">中转站 API Key / 令牌</label>
                             <Input
                                 type="password"
-                                value={naiSettings.apiKey}
-                                onChange={(event) => {
-                                    updateNovelAi({ apiKey: event.target.value });
-                                    setNaiTokenStatus(null);
-                                }}
-                                placeholder="pst-... 或中转站 Key"
+                                value={naiRelaySettings.apiKey}
+                                onChange={(event) => updateNovelAiRelay({ apiKey: event.target.value })}
+                                placeholder="sk-..."
                             />
-                            <span className="menu-desc ml-1">官方为 Persistent API Token (pst-...)，中转站填写对应提供的密钥。</span>
-                            {naiTokenStatus && (
-                                <div role={naiTokenStatus.success ? "status" : "alert"} className="mt-2">
-                                    <Alert variant={naiTokenStatus.success ? "success" : "danger"}>
-                                        <AlertCircle size={16} className="mt-[2px] shrink-0" />
-                                        <span className="break-all leading-[1.5]">{naiTokenStatus.message}</span>
-                                    </Alert>
-                                </div>
-                            )}
                         </div>
+
+                        <div className="flex flex-col gap-1">
+                            <label className="menu-desc ml-1">中转站模型名</label>
+                            <Input
+                                type="text"
+                                value={naiRelaySettings.model}
+                                onChange={(event) => updateNovelAiRelay({ model: event.target.value })}
+                                placeholder="nai-diffusion-4-curated-preview 或 nai-diffusion-4-full"
+                            />
+                            <span className="menu-desc ml-1">中转站后台对应的模型名称。参数预设与画师串在下方调节。</span>
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                            <label className="menu-desc ml-1">请求方式</label>
+                            <Select
+                                value={naiRelaySettings.requestMode}
+                                onChange={(event) => updateNovelAiRelay({
+                                    requestMode: event.target.value as ImageGenerationSettingsType["requestMode"],
+                                })}
+                            >
+                                <option value="server">服务端转发（推荐）</option>
+                                <option value="direct">浏览器直连</option>
+                            </Select>
+                        </div>
+                    </>
+                )}
+
+                {(settings.provider === "novelai" || settings.provider === "novelai-relay") ? (
+                    /* --- NovelAI 参数配置面板（官方与中转站共享预设参数） --- */
+                    <>
+                        {settings.provider === "novelai" && (
+                            <div className="flex flex-col gap-1">
+                                <label className="menu-desc ml-1">NovelAI 官方 API Token</label>
+                                <Input
+                                    type="password"
+                                    value={naiSettings.apiKey}
+                                    onChange={(event) => {
+                                        updateNovelAi({ apiKey: event.target.value });
+                                        setNaiTokenStatus(null);
+                                    }}
+                                    placeholder="pst-..."
+                                />
+                                <span className="menu-desc ml-1">可在 NovelAI 官网 Account 页面获取 Persistent API Token。</span>
+                                {naiTokenStatus && (
+                                    <div role={naiTokenStatus.success ? "status" : "alert"} className="mt-2">
+                                        <Alert variant={naiTokenStatus.success ? "success" : "danger"}>
+                                            <AlertCircle size={16} className="mt-[2px] shrink-0" />
+                                            <span className="break-all leading-[1.5]">{naiTokenStatus.message}</span>
+                                        </Alert>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* 预设管理栏 */}
                         <div className="flex flex-col gap-2 rounded-xl bg-[var(--c-input)]/40 p-3 border border-[var(--c-card-border)]">
@@ -755,48 +815,50 @@ export function ImageGenerationSettings() {
                         </div>
 
                         {/* 预设详细参数 */}
-                        <div className="flex flex-col gap-1">
-                            <label className="menu-desc ml-1">模型 (Model)</label>
-                            <div className="flex gap-2">
-                                <div className="relative flex-1">
-                                    <Input
-                                        type="text"
-                                        value={naiSettings.activePreset.model}
-                                        onChange={(event) => updateActivePreset({ model: event.target.value })}
-                                        placeholder="nai-diffusion-4-curated-preview"
-                                        className={naiModels.length > 0 ? "w-full pr-9" : "w-full"}
-                                    />
-                                    {naiModels.length > 0 && (
-                                        <>
-                                            <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 opacity-60" />
-                                            <select
-                                                aria-label="选择常见 NAI 模型"
-                                                value=""
-                                                onChange={(event) => {
-                                                    if (event.target.value) updateActivePreset({ model: event.target.value });
-                                                }}
-                                                className="absolute inset-y-0 right-0 w-10 cursor-pointer opacity-0"
-                                            >
-                                                <option value="">快速选择模型...</option>
-                                                {naiModels.map(m => (
-                                                    <option key={m} value={m}>{m}</option>
-                                                ))}
-                                            </select>
-                                        </>
-                                    )}
+                        {settings.provider === "novelai" && (
+                            <div className="flex flex-col gap-1">
+                                <label className="menu-desc ml-1">模型 (Model)</label>
+                                <div className="flex gap-2">
+                                    <div className="relative flex-1">
+                                        <Input
+                                            type="text"
+                                            value={naiSettings.activePreset.model}
+                                            onChange={(event) => updateActivePreset({ model: event.target.value })}
+                                            placeholder="nai-diffusion-4-curated-preview"
+                                            className={naiModels.length > 0 ? "w-full pr-9" : "w-full"}
+                                        />
+                                        {naiModels.length > 0 && (
+                                            <>
+                                                <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 opacity-60" />
+                                                <select
+                                                    aria-label="选择常见 NAI 模型"
+                                                    value=""
+                                                    onChange={(event) => {
+                                                        if (event.target.value) updateActivePreset({ model: event.target.value });
+                                                    }}
+                                                    className="absolute inset-y-0 right-0 w-10 cursor-pointer opacity-0"
+                                                >
+                                                    <option value="">快速选择模型...</option>
+                                                    {naiModels.map(m => (
+                                                        <option key={m} value={m}>{m}</option>
+                                                    ))}
+                                                </select>
+                                            </>
+                                        )}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={fetchNaiModels}
+                                        disabled={isFetchingNaiModels}
+                                        className="ui-btn ui-btn-soft-action min-h-11 shrink-0"
+                                    >
+                                        <RefreshCw size={16} className={isFetchingNaiModels ? "animate-spin" : ""} />
+                                        {isFetchingNaiModels ? "验证中" : "验证 Token"}
+                                    </button>
                                 </div>
-                                <button
-                                    type="button"
-                                    onClick={fetchNaiModels}
-                                    disabled={isFetchingNaiModels}
-                                    className="ui-btn ui-btn-soft-action min-h-11 shrink-0"
-                                >
-                                    <RefreshCw size={16} className={isFetchingNaiModels ? "animate-spin" : ""} />
-                                    {isFetchingNaiModels ? "验证中" : "验证 Token"}
-                                </button>
+                                <span className="menu-desc ml-1 opacity-70">模型下拉列表内置于应用；“验证 Token”只检查凭证，不会发起生图。</span>
                             </div>
-                            <span className="menu-desc ml-1 opacity-70">模型下拉列表内置于应用；“验证 Token”只检查凭证，不会发起生图。</span>
-                        </div>
+                        )}
 
                         <div className="flex flex-col gap-1">
                             <label className="menu-desc ml-1">分辨率 (Resolution)</label>

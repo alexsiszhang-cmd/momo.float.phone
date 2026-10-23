@@ -696,10 +696,15 @@ export const DEFAULT_IMAGE_GENERATION_SETTINGS: ImageGenerationSettings = {
     extraPrompt: "",
     novelai: {
         apiKey: "",
-        baseUrl: "https://image.novelai.net",
         requestMode: "direct",
         activePresetId: DEFAULT_NOVELAI_PRESET.id,
         presets: [DEFAULT_NOVELAI_PRESET],
+    },
+    novelaiRelay: {
+        apiKey: "",
+        baseUrl: "https://api.openai.com/v1",
+        model: "nai-diffusion-4-curated-preview",
+        requestMode: "server",
     },
     characterReferences: {},
     userReferences: {},
@@ -809,7 +814,9 @@ function normalizeImageGenerationSettings(settings: Partial<ImageGenerationSetti
                 : { x: 0.27, y: 0.12, size: 0.46 },
         };
     }
-    const provider = settings?.provider === "novelai" ? "novelai" : "openai";
+    const provider = settings?.provider === "novelai" || settings?.provider === "novelai-relay"
+        ? settings.provider
+        : "openai";
     const requestMode = settings?.requestMode === "server" || settings?.requestMode === "direct"
         ? settings.requestMode
         : DEFAULT_IMAGE_GENERATION_SETTINGS.requestMode;
@@ -855,12 +862,21 @@ function normalizeImageGenerationSettings(settings: Partial<ImageGenerationSetti
 
     const novelai: import("./settings-types").NovelAiSettings = {
         apiKey: typeof rawNai?.apiKey === "string" ? rawNai.apiKey : "",
-        baseUrl: typeof rawNai?.baseUrl === "string" && rawNai.baseUrl.trim() ? rawNai.baseUrl.trim() : "https://image.novelai.net",
         requestMode: rawNai?.requestMode === "server" || rawNai?.requestMode === "direct"
             ? rawNai.requestMode
             : requestMode,
         activePresetId,
         presets: naiPresets,
+    };
+
+    const rawNaiRelay = settings?.novelaiRelay;
+    const novelaiRelay: import("./settings-types").NovelAiRelaySettings = {
+        apiKey: typeof rawNaiRelay?.apiKey === "string" ? rawNaiRelay.apiKey : "",
+        baseUrl: typeof rawNaiRelay?.baseUrl === "string" ? rawNaiRelay.baseUrl : "https://api.openai.com/v1",
+        model: typeof rawNaiRelay?.model === "string" && rawNaiRelay.model ? rawNaiRelay.model : "nai-diffusion-4-curated-preview",
+        requestMode: rawNaiRelay?.requestMode === "direct" || rawNaiRelay?.requestMode === "server"
+            ? rawNaiRelay.requestMode
+            : "server",
     };
 
     return {
@@ -877,6 +893,7 @@ function normalizeImageGenerationSettings(settings: Partial<ImageGenerationSetti
         openaiPresets,
         activeOpenAiPresetId,
         novelai,
+        novelaiRelay,
         characterReferences: refs,
         userReferences,
         imageHosting: {

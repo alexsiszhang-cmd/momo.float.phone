@@ -208,8 +208,7 @@ async function runNovelAiGeneration(input: ImageGenerationRequest): Promise<{ st
 
     const { width, height } = getNovelAiResolution(input.size);
 
-    const baseUrl = input.baseUrl?.trim() ? input.baseUrl.trim().replace(/\/+$/, "") : "https://image.novelai.net";
-    const url = baseUrl.endsWith("/ai/generate-image") ? baseUrl : `${baseUrl}/ai/generate-image`;
+    const url = "https://image.novelai.net/ai/generate-image";
     const headers: Record<string, string> = {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",

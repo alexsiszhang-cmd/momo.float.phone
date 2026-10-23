@@ -587,18 +587,16 @@ async function generateImageViaServer(params: {
 
 async function generateNovelAiDirect(params: {
   apiKey: string;
-  baseUrl?: string;
   preset: NovelAiPreset;
   prompt: string;
   signal?: AbortSignal;
 }): Promise<ImageGenerationApiResponse> {
-  const { apiKey, baseUrl, preset, prompt, signal } = params;
+  const { apiKey, preset, prompt, signal } = params;
   throwIfAborted(signal);
 
   const { width, height } = getNovelAiResolution(preset.resolution);
 
-  const normalizedBase = baseUrl?.trim() ? baseUrl.trim().replace(/\/+$/, "") : "https://image.novelai.net";
-  const url = normalizedBase.endsWith("/ai/generate-image") ? normalizedBase : `${normalizedBase}/ai/generate-image`;
+  const url = "https://image.novelai.net/ai/generate-image";
   const headers: Record<string, string> = {
     Authorization: `Bearer ${apiKey}`,
     "Content-Type": "application/json",
@@ -677,12 +675,11 @@ async function generateNovelAiDirect(params: {
 
 async function generateNovelAiViaServer(params: {
   apiKey: string;
-  baseUrl?: string;
   preset: NovelAiPreset;
   prompt: string;
   signal?: AbortSignal;
 }): Promise<ImageGenerationApiResponse> {
-  const { apiKey, baseUrl, preset, prompt, signal } = params;
+  const { apiKey, preset, prompt, signal } = params;
   throwIfAborted(signal);
 
   const controller = new AbortController();
@@ -699,7 +696,6 @@ async function generateNovelAiViaServer(params: {
       body: JSON.stringify({
         provider: "novelai",
         apiKey,
-        baseUrl: baseUrl || undefined,
         model: normalizeNovelAiModel(preset.model),
         prompt,
         size: resolution.value,
@@ -770,17 +766,14 @@ async function generateNovelAiViaServer(params: {
   }
 }
 
-export async function fetchNovelAiModels(apiKey: string, baseUrl?: string): Promise<string[]> {
+export async function fetchNovelAiModels(apiKey: string): Promise<string[]> {
   const token = apiKey.trim();
   if (!token) throw new Error("请先填写 NovelAI API Token。");
-
-  const normalizedBase = baseUrl?.trim() ? baseUrl.trim().replace(/\/+$/, "") : "https://image.novelai.net";
-  const userUrl = normalizedBase.endsWith("/user/data") ? normalizedBase : `${normalizedBase}/user/data`;
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15_000);
   try {
-    const res = await fetch(userUrl, {
+    const res = await fetch("https://image.novelai.net/user/data", {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
       signal: controller.signal,
@@ -859,10 +852,79 @@ export async function generateImageFromConfiguredApi(params: {
     const fullPrompt = positiveParts.join(", ");
 
     const novelAiRequestMode = settings.novelai?.requestMode || settings.requestMode;
-    const naiBaseUrl = settings.novelai?.baseUrl?.trim();
     const data = novelAiRequestMode === "direct"
-      ? await generateNovelAiDirect({ apiKey: naiApiKey, baseUrl: naiBaseUrl, preset: activePreset, prompt: fullPrompt, signal: params.signal })
-      : await generateNovelAiViaServer({ apiKey: naiApiKey, baseUrl: naiBaseUrl, preset: activePreset, prompt: fullPrompt, signal: params.signal });
+      ? await generateNovelAiDirect({ apiKey: naiApiKey, preset: activePreset, prompt: fullPrompt, signal: params.signal })
+      : await generateNovelAiViaServer({ apiKey: naiApiKey, preset: activePreset, prompt: fullPrompt, signal: params.signal });
+
+    throwIfAborted(params.signal);
+    const mimeType = data.mimeType || "image/png";
+    const blob = base64ToBlob(data.b64, mimeType);
+    throwIfAborted(params.signal);
+    const mediaRef = await storeMediaBlob(blob, mimeType, "image");
+    throwIfAborted(params.signal);
+    return {
+      mediaRef,
+      dataUrl: `data:${mimeType};base64,${data.b64}`,
+      blob,
+      mimeType,
+      prompt: fullPrompt,
+      usedReferenceImage: false,
+      revisedPrompt: data.revisedPrompt,
+    };
+  }
+
+  // NovelAI (OpenAI 兼容中转) 模式：复用 NovelAI 提示词与预设，但请求走标准 OpenAI /v1/images/generations 接口，彻底避开 /edits
+  if (settings.provider === "novelai-relay") {
+    const relayApiKey = settings.novelaiRelay?.apiKey?.trim();
+    const relayBaseUrl = settings.novelaiRelay?.baseUrl?.trim();
+    const relayModel = settings.novelaiRelay?.model?.trim() || "nai-diffusion-4-curated-preview";
+    if (!relayApiKey || !relayBaseUrl) return null;
+
+    const presets = settings.novelai?.presets && settings.novelai.presets.length > 0
+      ? settings.novelai.presets
+      : [DEFAULT_NOVELAI_PRESET];
+    const activePreset = presets.find(p => p.id === settings.novelai?.activePresetId) || presets[0];
+
+    const positiveParts: string[] = [];
+    if (activePreset.positivePrompt?.trim()) positiveParts.push(activePreset.positivePrompt.trim());
+    const novelAiCharacterReference = params.characterId
+      ? settings.characterReferences?.[params.characterId]
+      : undefined;
+    const characterFeaturePrompt = novelAiCharacterReference?.novelAiFeaturePromptEnabled !== false
+      ? novelAiCharacterReference?.featurePrompt?.trim()
+      : "";
+    if (characterFeaturePrompt) positiveParts.push(characterFeaturePrompt);
+    const anchorPrompt = (novelAiCharacterReference?.anchors || [])
+      .filter(anchor => anchor.enabled !== false && anchor.description.trim())
+      .map(anchor => `${anchor.name}: ${anchor.description.trim()}`)
+      .join(", ");
+    if (anchorPrompt) positiveParts.push(anchorPrompt);
+    if (description) positiveParts.push(description);
+
+    let fullPrompt = positiveParts.join(", ");
+    if (activePreset.negativePrompt?.trim()) {
+      fullPrompt += `\n### Negative Prompt:\n${activePreset.negativePrompt.trim()}`;
+    }
+
+    const relayRequestMode = settings.novelaiRelay?.requestMode || "server";
+    const syntheticSettings: ImageGenerationSettings = {
+      ...settings,
+      apiKey: relayApiKey,
+      baseUrl: relayBaseUrl,
+      model: relayModel,
+      size: activePreset.resolution || "1024x1024",
+      quality: "standard",
+      extraPrompt: "",
+      requestMode: relayRequestMode,
+    };
+
+    // 关键：无论是聊天还是单测，永不传入 referenceImageDataUrl，纯文本请求 /v1/images/generations，保证中转站不报错
+    const data = await generateImageWithFallback({
+      settings: syntheticSettings,
+      prompt: fullPrompt,
+      referenceImageDataUrl: null,
+      signal: params.signal,
+    });
 
     throwIfAborted(params.signal);
     const mimeType = data.mimeType || "image/png";

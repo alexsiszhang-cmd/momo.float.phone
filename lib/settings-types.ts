@@ -177,7 +177,7 @@ export type VoiceApiConfig = {
 };
 
 // --- Image Generation ---
-export type ImageGenerationProvider = "openai" | "novelai";
+export type ImageGenerationProvider = "openai" | "novelai" | "novelai-relay";
 
 export type ImageGenerationRequestMode = "server" | "direct";
 
@@ -220,9 +220,15 @@ export type NovelAiPreset = {
     smeaDyn?: boolean;
 };
 
+export type NovelAiRelaySettings = {
+    apiKey: string;
+    baseUrl: string;
+    model: string;
+    requestMode?: ImageGenerationRequestMode;
+};
+
 export type NovelAiSettings = {
     apiKey: string;
-    baseUrl?: string;
     requestMode?: ImageGenerationRequestMode;
     activePresetId: string;
     presets: NovelAiPreset[];
@@ -243,6 +249,7 @@ export type ImageGenerationSettings = {
     activeOpenAiPresetId?: string;
     // NovelAI 模式配置
     novelai?: NovelAiSettings;
+    novelaiRelay?: NovelAiRelaySettings;
     characterReferences: Record<string, {
         assetId?: string;
         updatedAt: number;
