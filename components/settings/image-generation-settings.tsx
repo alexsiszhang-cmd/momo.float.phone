@@ -308,17 +308,24 @@ export function ImageGenerationSettings() {
     }, [settings.novelaiRelay]);
 
     const updateNovelAiRelay = useCallback((patch: Partial<import("@/lib/settings-types").NovelAiRelaySettings>) => {
-        persist({
-            ...settings,
-            novelaiRelay: {
-                apiKey: naiRelaySettings.apiKey,
-                baseUrl: naiRelaySettings.baseUrl,
-                model: naiRelaySettings.model,
-                requestMode: naiRelaySettings.requestMode,
-                ...patch,
-            },
+        setSettings(prev => {
+            const currentRelay = prev.novelaiRelay || {
+                apiKey: "",
+                baseUrl: "https://api.openai.com/v1",
+                model: "nai-diffusion-4-curated-preview",
+                requestMode: "server",
+            };
+            const updated = {
+                ...prev,
+                novelaiRelay: {
+                    ...currentRelay,
+                    ...patch,
+                },
+            };
+            saveImageGenerationSettings(updated);
+            return updated;
         });
-    }, [naiRelaySettings, persist, settings]);
+    }, []);
 
     const updateActivePreset = useCallback((patch: Partial<NovelAiPreset>) => {
         const nextPresets = naiSettings.presets.map(p => {
@@ -367,15 +374,20 @@ export function ImageGenerationSettings() {
 
     const likelyModels = useMemo(() => filterLikelyImageModels(models), [models]);
 
-    const fetchModels = async () => {
+    const fetchModels = async (targetPreset?: { apiKey: string; baseUrl: string; requestMode?: ImageGenerationSettingsType["requestMode"] }) => {
         setStatus(null);
-        if (!activeOpenAiPreset.apiKey.trim() || !activeOpenAiPreset.baseUrl.trim()) {
+        const preset = targetPreset || activeOpenAiPreset;
+        if (!preset.apiKey.trim() || !preset.baseUrl.trim()) {
             setStatus({ success: false, message: "请先填写 Base URL 和 API Key。" });
             return;
         }
         setIsFetchingModels(true);
         try {
-            const fetched = await fetchImageGenerationModels(activeOpenAiPreset);
+            const fetched = await fetchImageGenerationModels({
+                apiKey: preset.apiKey,
+                baseUrl: preset.baseUrl,
+                requestMode: preset.requestMode || "server",
+            });
             setModels(fetched);
             setStatus({
                 success: true,
@@ -711,13 +723,45 @@ export function ImageGenerationSettings() {
 
                         <div className="flex flex-col gap-1">
                             <label className="menu-desc ml-1">中转站模型名</label>
-                            <Input
-                                type="text"
-                                value={naiRelaySettings.model}
-                                onChange={(event) => updateNovelAiRelay({ model: event.target.value })}
-                                placeholder="nai-diffusion-4-curated-preview 或 nai-diffusion-4-full"
-                            />
-                            <span className="menu-desc ml-1">中转站后台对应的模型名称。参数预设与画师串在下方调节。</span>
+                            <div className="flex gap-2">
+                                <div className="relative flex-1">
+                                    <Input
+                                        type="text"
+                                        value={naiRelaySettings.model}
+                                        onChange={(event) => updateNovelAiRelay({ model: event.target.value })}
+                                        placeholder="nai-diffusion-4-curated-preview 或 nai-diffusion-4-full"
+                                        className={models.length > 0 ? "w-full pr-9" : "w-full"}
+                                    />
+                                    {models.length > 0 && (
+                                        <>
+                                            <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 opacity-60" />
+                                            <select
+                                                aria-label="选择中转站模型"
+                                                value=""
+                                                onChange={(event) => {
+                                                    if (event.target.value) updateNovelAiRelay({ model: event.target.value });
+                                                }}
+                                                className="absolute inset-y-0 right-0 w-10 cursor-pointer opacity-0"
+                                            >
+                                                <option value="">快速选择模型...</option>
+                                                {models.map(m => (
+                                                    <option key={m} value={m}>{m}</option>
+                                                ))}
+                                            </select>
+                                        </>
+                                    )}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => fetchModels(naiRelaySettings)}
+                                    disabled={isFetchingModels}
+                                    className="ui-btn ui-btn-soft-action min-h-11 shrink-0"
+                                >
+                                    <RefreshCw size={16} className={isFetchingModels ? "animate-spin" : ""} />
+                                    {isFetchingModels ? "拉取中" : "拉取模型"}
+                                </button>
+                            </div>
+                            <span className="menu-desc ml-1">可点击「拉取模型」获取中转站支持的模型列表，或手动填写模型名。</span>
                         </div>
 
                         <div className="flex flex-col gap-1">
