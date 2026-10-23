@@ -919,12 +919,19 @@ export async function generateImageFromConfiguredApi(params: {
     };
 
     // 关键：无论是聊天还是单测，永不传入 referenceImageDataUrl，纯文本请求 /v1/images/generations，保证中转站不报错
-    const data = await generateImageWithFallback({
-      settings: syntheticSettings,
-      prompt: fullPrompt,
-      referenceImageDataUrl: null,
-      signal: params.signal,
-    });
+    const data = syntheticSettings.requestMode === "direct"
+      ? await generateImageDirect({
+          settings: syntheticSettings,
+          prompt: fullPrompt,
+          referenceImageDataUrl: null,
+          signal: params.signal,
+        })
+      : await generateImageViaServerOrProxy({
+          settings: syntheticSettings,
+          prompt: fullPrompt,
+          referenceImageDataUrl: null,
+          signal: params.signal,
+        });
 
     throwIfAborted(params.signal);
     const mimeType = data.mimeType || "image/png";
