@@ -266,7 +266,31 @@ export function applyListeningRoomReply(text: string, sessionId: string, actorId
         if (session.isGroup) {
             if (!actorId) return "";
             const existing = getListeningRoom();
-            if (existing?.isGroup && existing.sessionId === sessionId) { respondGroupListeningMember(existing.id, sessionId, actorId, "接受", batchId); return ""; }
+            if (existing?.isGroup && existing.sessionId === sessionId) {
+                if (existing.status === "joined") {
+                    const [title, artist] = (song || "").split("|").map(value => value.trim());
+                    if (title) {
+                        const bridge = getMusicControlBridge();
+                        if (bridge) {
+                            void bridge.playByQuery(title, artist).then(res => {
+                                if (res.ok && res.track) {
+                                    room = { ...existing, song: { title: res.track.title, artist: res.track.artist, coverUrl: res.track.coverUrl } };
+                                    emit();
+                                    pushChatMessage({
+                                        sessionId,
+                                        role: "system",
+                                        content: `一起听正在播放《${res.track.title}》${res.track.artist ? " · " + res.track.artist : ""}。`,
+                                    });
+                                    window.dispatchEvent(new CustomEvent("chat-messages-updated", { detail: { sessionId } }));
+                                }
+                            });
+                        }
+                    }
+                    return "";
+                }
+                respondGroupListeningMember(existing.id, sessionId, actorId, "接受", batchId);
+                return "";
+            }
             if (existing && existing.status !== "declined" && existing.sessionId !== sessionId && existing.userJoined !== false) return "";
             const invitation = inviteGroupListeningRoom(sessionId, actorId);
             const [title, artist] = (song || "").split("|").map(value => value.trim());
@@ -287,6 +311,28 @@ export function applyListeningRoomReply(text: string, sessionId: string, actorId
                 return "";
             }
             if (current.status === "invited" && current.initiator === "character") return "";
+            // 已在连线中时平滑切歌，不解散房间，不重复发邀请卡片
+            if (current.status === "joined") {
+                const [title, artist] = (song || "").split("|").map(value => value.trim());
+                if (title) {
+                    const bridge = getMusicControlBridge();
+                    if (bridge) {
+                        void bridge.playByQuery(title, artist).then(res => {
+                            if (res.ok && res.track) {
+                                room = { ...current, song: { title: res.track.title, artist: res.track.artist, coverUrl: res.track.coverUrl } };
+                                emit();
+                                pushChatMessage({
+                                    sessionId,
+                                    role: "system",
+                                    content: `一起听正在播放《${res.track.title}》${res.track.artist ? " · " + res.track.artist : ""}。`,
+                                });
+                                window.dispatchEvent(new CustomEvent("chat-messages-updated", { detail: { sessionId } }));
+                            }
+                        });
+                    }
+                }
+                return "";
+            }
         }
         const invitation = inviteListeningRoom(sessionId, session.contactId);
         const snapshot = getMusicControlBridge()?.getState();
