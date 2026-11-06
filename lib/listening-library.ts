@@ -10,7 +10,19 @@ type RankFact = { eventId: string; sessionId: string; characterId: string; text:
 export type ListeningLibrary = { version: 1; totals: Record<string, number>; playlists: SharedListeningPlaylist[]; sampled: string[]; facts: RankFact[]; history: { roomId: string; sessionId: string; characterIds: string[]; endedAt: number }[] };
 
 export function loadListeningLibrary(): ListeningLibrary {
-    try { const raw = JSON.parse(kvGet(KEY) || "null"); if (raw?.version === 1) return raw; } catch { /* Empty local library. */ }
+    try {
+        const raw = JSON.parse(kvGet(KEY) || "null");
+        if (raw && typeof raw === "object") {
+            return {
+                version: 1,
+                totals: raw.totals && typeof raw.totals === "object" ? raw.totals : {},
+                playlists: Array.isArray(raw.playlists) ? raw.playlists : [],
+                sampled: Array.isArray(raw.sampled) ? raw.sampled : [],
+                facts: Array.isArray(raw.facts) ? raw.facts : [],
+                history: Array.isArray(raw.history) ? raw.history : [],
+            };
+        }
+    } catch { /* Empty local library. */ }
     return { version: 1, totals: {}, playlists: [], sampled: [], facts: [], history: [] };
 }
 
@@ -42,6 +54,8 @@ export function addListeningTime(characterIds: string[], milliseconds: number) {
 
 export function sampleListeningRank(roomId: string, sessionId: string, characterId: string, phase: "start" | "end", random = Math.random) {
     const data = loadListeningLibrary(), eventId = `${roomId}:${characterId}:${phase}`;
+    if (!Array.isArray(data.sampled)) data.sampled = [];
+    if (!Array.isArray(data.facts)) data.facts = [];
     if (data.sampled.includes(eventId)) return;
     data.sampled = [...data.sampled, eventId].slice(-2000);
     if (random() < (phase === "start" ? .1 : .25)) {
@@ -54,14 +68,15 @@ export function sampleListeningRank(roomId: string, sessionId: string, character
 
 export function takeListeningRankFacts(characterId: string, sessionId: string) {
     const data = loadListeningLibrary();
-    const facts = data.facts.filter(f => f.characterId === characterId && f.sessionId === sessionId && Date.now() - f.at < 86400000);
+    const facts = (data.facts || []).filter(f => f && f.characterId === characterId && f.sessionId === sessionId && Date.now() - f.at < 86400000);
     if (!facts.length) return "";
-    data.facts = data.facts.filter(f => !facts.includes(f)); save(data);
+    data.facts = (data.facts || []).filter(f => !facts.includes(f)); save(data);
     return facts.map(f => f.text).join("\n");
 }
 
 export function finishListeningHistory(roomId: string, sessionId: string, characterIds: string[]) {
     const data = loadListeningLibrary();
+    if (!Array.isArray(data.history)) data.history = [];
     if (!data.history.some(h => h.roomId === roomId)) data.history.push({ roomId, sessionId, characterIds, endedAt: Date.now() });
     data.history = data.history.slice(-200); save(data);
 }

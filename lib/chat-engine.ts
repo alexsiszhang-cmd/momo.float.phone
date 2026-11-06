@@ -1983,7 +1983,14 @@ export async function buildChatPromptMessages(
         hint: buildChatPluginPromptFragments(session.id),
     });
     const pluginPromptHint = pluginPrompt.hint?.trim() ? `\n\n### 扩展插件\n${pluginPrompt.hint.trim()}\n` : "";
-    const listeningPrompt = listeningRoomPrompt(character.id, session.id);
+    let listeningPrompt = "";
+    try {
+        if (typeof listeningRoomPrompt === "function") {
+            listeningPrompt = listeningRoomPrompt(character.id, session.id) || "";
+        }
+    } catch (e) {
+        console.warn("[ChatEngine] listeningRoomPrompt error:", e);
+    }
     const musicListeningPrompt = listeningPrompt
         ? `\n\n### 一起听与音乐协议\n${CHARACTER_LISTENING_INVITE_PROTOCOL}\n${listeningPrompt}\n`
         : `\n\n### 音乐分享协议\n${CHARACTER_LISTENING_INVITE_PROTOCOL}\n`;

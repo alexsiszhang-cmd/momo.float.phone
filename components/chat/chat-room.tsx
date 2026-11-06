@@ -2971,7 +2971,9 @@ export function ChatRoom({ session, onBack, onDeleted, onUserMessageSent, contac
         const forcedStory = forcedStoryEnabled
             ? extractForcedStoryTrigger(aiResponseText)
             : { text: aiResponseText, description: undefined };
-        aiResponseText = applyListeningRoomReply(forcedStory.text, session.id, session.contactId, responseBatchId);
+        aiResponseText = typeof applyListeningRoomReply === "function"
+            ? applyListeningRoomReply(forcedStory.text, session.id, session.contactId, responseBatchId)
+            : forcedStory.text;
         const rawResponseText = options?.rawResponseText
             ? extractForcedStoryTrigger(options.rawResponseText).text
             : aiResponseText;
@@ -3536,10 +3538,13 @@ export function ChatRoom({ session, onBack, onDeleted, onUserMessageSent, contac
             }
         } catch (error: any) {
             if (!isCurrentGeneration() || isAbortLikeError(error)) return;
+            console.error(`[ChatRoom] ${errorPrefix} error:`, error);
+            const stackFirstLine = typeof error?.stack === "string" ? error.stack.split("\n").slice(0, 3).join("\n") : "";
+            const detailText = stackFirstLine ? `\n${stackFirstLine}` : "";
             const errorMsg = pushChatMessage({
                 sessionId: session.id,
                 role: "system",
-                content: `⚠️ ${errorPrefix}: ${error?.message || String(error)}`,
+                content: `⚠️ ${errorPrefix}: ${error?.message || String(error)}${detailText}`,
             });
             setMessages(prev => [...prev, errorMsg]);
         } finally {
@@ -4092,10 +4097,13 @@ export function ChatRoom({ session, onBack, onDeleted, onUserMessageSent, contac
             }
         } catch (error: any) {
             if (!isCurrentGeneration() || isAbortLikeError(error)) return;
+            console.error("[ChatRoom] triggerAIResponse error:", error);
+            const stackFirstLine = typeof error?.stack === "string" ? error.stack.split("\n").slice(0, 3).join("\n") : "";
+            const detailText = stackFirstLine ? `\n${stackFirstLine}` : "";
             const errorMsg = pushChatMessage({
                 sessionId: session.id,
                 role: "system",
-                content: `⚠️ 发送失败: ${error?.message || String(error)}`
+                content: `⚠️ 发送失败: ${error?.message || String(error)}${detailText}`
             });
             setMessages(prev => [...prev, errorMsg]);
         } finally {

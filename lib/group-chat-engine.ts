@@ -449,7 +449,14 @@ async function buildGroupChatPromptMessages(
         hint: buildChatPluginPromptFragments(session.id),
     });
     const pluginPromptHint = pluginPrompt.hint?.trim() ? `\n\n### 扩展插件\n${pluginPrompt.hint.trim()}\n` : "";
-    const listeningPrompt = groupListeningRoomPrompt(session.id, members.map(m => m.character.id));
+    let listeningPrompt = "";
+    try {
+        if (typeof groupListeningRoomPrompt === "function") {
+            listeningPrompt = groupListeningRoomPrompt(session.id, members.map(m => m.character.id)) || "";
+        }
+    } catch (e) {
+        console.warn("[GroupChatEngine] groupListeningRoomPrompt error:", e);
+    }
     const musicListeningPrompt = listeningPrompt
         ? `\n\n### 一起听与音乐协议\n${CHARACTER_LISTENING_INVITE_PROTOCOL}\n${listeningPrompt}\n`
         : `\n\n### 音乐分享协议\n${CHARACTER_LISTENING_INVITE_PROTOCOL}\n`;

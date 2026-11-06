@@ -60,7 +60,9 @@ function stopAccounting() { if (accountingTimer) clearInterval(accountingTimer);
 
 function rankingEvent(current: ListeningRoom, id: string, phase: "start" | "end") {
     const member = current.members?.find(m => m.characterId === id);
-    sampleListeningRank(current.isGroup ? current.id + ":" + (member?.joinedAt || current.startedAt) : current.id, current.sessionId, id, phase);
+    if (typeof sampleListeningRank === "function") {
+        sampleListeningRank(current.isGroup ? current.id + ":" + (member?.joinedAt || current.startedAt) : current.id, current.sessionId, id, phase);
+    }
 }
 
 function startRanks() {
@@ -77,7 +79,7 @@ function startRanks() {
 function endRoom(current: ListeningRoom) {
     settleListeningTime();
     for (const id of joinedIds(current)) if (!current.isGroup || current.members?.find(m => m.characterId === id)?.rankStarted) rankingEvent(current, id, "end");
-    if (joinedIds(current).length) finishListeningHistory(current.id, current.sessionId, joinedIds(current));
+    if (joinedIds(current).length && typeof finishListeningHistory === "function") finishListeningHistory(current.id, current.sessionId, joinedIds(current));
     stopAccounting();
 }
 
@@ -218,45 +220,51 @@ export function recordListeningGlow(roomId: string) {
 }
 
 export function groupListeningRoomPrompt(sessionId: string, characterIds: string[]): string {
-    reconcileListeningMembers();
-    const session = loadChatSessions().find(s => s.id === sessionId);
+    if (typeof reconcileListeningMembers === "function") reconcileListeningMembers();
+    const session = typeof loadChatSessions === "function" ? loadChatSessions().find(s => s.id === sessionId) : null;
     if (!session?.isGroup || (session as any).isSpectator) return "";
     const ids = characterIds.filter(id => session.participantIds?.includes(id));
-    const chars = loadCharacters();
+    const chars = typeof loadCharacters === "function" ? loadCharacters() : [];
     const name = (id: string) => chars.find(c => c.id === id)?.name || id;
-    const facts = ids.map(id => { const text = takeListeningRankFacts(id, sessionId); return text ? `[${name(id)}个人知晓]\n${text}` : ""; }).filter(Boolean);
+    const facts = ids.map(id => {
+        const text = typeof takeListeningRankFacts === "function" ? takeListeningRankFacts(id, sessionId) : "";
+        return text ? `[${name(id)}个人知晓]\n${text}` : "";
+    }).filter(Boolean);
     const current = getListeningRoom();
     if (current?.isGroup && current.sessionId === sessionId) {
-        const state = getMusicControlBridge()?.getState();
+        const bridge = typeof getMusicControlBridge === "function" ? getMusicControlBridge() : null;
+        const state = bridge?.getState?.();
         const track = state?.currentTrack;
-        facts.unshift(`群聊一起听房间ID:${current.id}；用户${current.userJoined ? "已加入" : "未加入"}。成员状态：${current.members?.filter(m => ids.includes(m.characterId)).map(m => `${name(m.characterId)}:${m.status === "joined" ? "已加入" : m.status === "declined" ? "拒绝/退出" : "待回应"}`).join("、")}。${track ? `当前${state!.isPlaying ? "播放" : "暂停"}：${track.title} · ${track.artist}。` : "尚未播放歌曲。"}按意愿在自己的发言段输出[一起听:${current.id}:接受]、[一起听:${current.id}:拒绝]或[一起听:${current.id}:退出]。仅决定自己的状态；退出不解散其他人，换歌/暂停不散场。头像星球相遇亮起粉色频谱，全屏淡粉love仅在加入时出现一次，非现实变化。具体歌词以歌词卡或用户输入为准，不每轮cue音乐。`);
+        facts.unshift(`群聊一起听房间ID:${current.id}；用户${current.userJoined ? "已加入" : "未加入"}。成员状态：${current.members?.filter(m => ids.includes(m.characterId)).map(m => `${name(m.characterId)}:${m.status === "joined" ? "已加入" : m.status === "declined" ? "拒绝/退出" : "待回应"}`).join("、")}。${track ? `当前${state?.isPlaying ? "播放" : "暂停"}：${track.title} · ${track.artist}。` : "尚未播放歌曲。"}按意愿在自己的发言段输出[一起听:${current.id}:接受]、[一起听:${current.id}:拒绝]或[一起听:${current.id}:退出]。仅决定自己的状态；退出不解散其他人，换歌/暂停不散场。头像星球相遇亮起粉色频谱，全屏淡粉love仅在加入时出现一次，非现实变化。具体歌词以歌词卡或用户输入为准，不每轮cue音乐。`);
     }
     return facts.join("\n");
 }
 
 export function listeningRoomPrompt(characterId: string, sessionId?: string): string {
-    reconcileListeningMembers();
-    const contextSession = sessionId ? loadChatSessions().find(s => s.id === sessionId) : null;
+    if (typeof reconcileListeningMembers === "function") reconcileListeningMembers();
+    const contextSession = sessionId && typeof loadChatSessions === "function" ? loadChatSessions().find(s => s.id === sessionId) : null;
     if (contextSession && (contextSession.isGroup ? !contextSession.participantIds?.includes(characterId) : contextSession.contactId !== characterId)) return "";
     const current = getListeningRoom();
-    const facts = sessionId ? takeListeningRankFacts(characterId, sessionId) : "";
+    const facts = sessionId && typeof takeListeningRankFacts === "function" ? takeListeningRankFacts(characterId, sessionId) : "";
     if (!current || current.sessionId !== sessionId || current.status === "declined" || (!current.isGroup && current.characterId !== characterId)) return facts;
     if (current.isGroup) {
         const member = current.members?.find(m => m.characterId === characterId);
         if (!member) return facts;
-        const chars = loadCharacters();
+        const chars = typeof loadCharacters === "function" ? loadCharacters() : [];
         const names = (current.members || []).filter(m => m.status === "joined").map(m => chars.find(c => c.id === m.characterId)?.name || m.characterId).join("、") || "暂无";
-        const snapshot = getMusicControlBridge()?.getState();
+        const bridge = typeof getMusicControlBridge === "function" ? getMusicControlBridge() : null;
+        const snapshot = bridge?.getState?.();
         const track = snapshot?.currentTrack;
-        const playing = track ? `当前${snapshot!.isPlaying ? "播放" : "暂停"}：${track.title} · ${track.artist}。` : "尚未播放歌曲。";
+        const playing = track ? `当前${snapshot?.isPlaying ? "播放" : "暂停"}：${track.title} · ${track.artist}。` : "尚未播放歌曲。";
         return [facts, playing, `群聊一起听房间ID:${current.id}。用户${current.userJoined ? "已加入" : "尚未加入"}；已加入角色：${names}；你${member.status === "joined" ? "已加入" : member.status === "declined" ? "已拒绝或退出" : "正在被邀请"}。按意愿在自己的发言段输出[一起听:${current.id}:接受]、[一起听:${current.id}:拒绝]或[一起听:${current.id}:退出]，仅代表你自己；退出不结束其他人的房间。共享播放器，换歌/暂停不散场。加入时有一次淡粉love入场特效，重叠不重复。具体歌词仅以歌词卡或用户输入为准，不每轮cue音乐。`].filter(Boolean).join("\n");
     }
     if (current.status === "invited" && current.initiator === "character") return [facts, "你已向用户发出一起听邀请，正在等待用户接受或拒绝。不要代替用户接受，不重复邀请；正常继续对话。"].filter(Boolean).join("\n");
     if (current.status === "invited") return [facts, `用户邀请你一起听歌。按人设、关系与当前意愿接受或拒绝；先输出[一起听:${current.id}:接受]或[一起听:${current.id}:拒绝]，再自然回复。`].filter(Boolean).join("\n");
-    const snapshot = getMusicControlBridge()?.getState();
+    const bridge = typeof getMusicControlBridge === "function" ? getMusicControlBridge() : null;
+    const snapshot = bridge?.getState?.();
     const track = snapshot?.currentTrack;
     const sharedEffect = `一起听界面以你们的头像作为两颗星球，相遇时粉色频谱亮起。加入一起听时仅出现一次约3.5秒的全屏淡粉滤镜与连笔love线条，从左侧写入、右侧退去；星球重叠不重复触发。${current.lastGlowAt ? "本次加入特效已出现。" : ""}这是双方共享的界面体验，可自然回应，不必每轮提及，不将它描述为现实环境变化。`;
-    return `${facts ? facts + "\n" : ""}你正在与用户一起听歌。${track ? `当前${snapshot!.isPlaying ? "播放" : "暂停"}：${track.title} · ${track.artist}。` : "尚未播放歌曲。"}换歌、歌曲结束或暂停不结束一起听，无需重新邀请；仅任一方主动退出才结束。${sharedEffect}具体歌词仅以用户分享的歌词卡或输入文字为准。继续当前对话；想结束时自然说明并附[一起听:${current.id}:退出]。`;
+    return `${facts ? facts + "\n" : ""}你正在与用户一起听歌。${track ? `当前${snapshot?.isPlaying ? "播放" : "暂停"}：${track.title} · ${track.artist}。` : "尚未播放歌曲。"}换歌、歌曲结束或暂停不结束一起听，无需重新邀请；仅任一方主动退出才结束。${sharedEffect}具体歌词仅以用户分享的歌词卡或输入文字为准。继续当前对话；想结束时自然说明并附[一起听:${current.id}:退出]。`;
 }
 
 export function applyListeningRoomReply(text: string, sessionId: string, actorId?: string, batchId?: string): string {
@@ -390,15 +398,16 @@ export function applyListeningRoomReply(text: string, sessionId: string, actorId
             if (accept) {
                 startRanks();
                 beginAccounting();
-                const bridge = getMusicControlBridge();
-                if (bridge && !bridge.getState().isPlaying && bridge.getState().currentTrack) {
-                    bridge.resume();
+                const bridge = typeof getMusicControlBridge === "function" ? getMusicControlBridge() : null;
+                const state = bridge?.getState?.();
+                if (bridge && state && !state.isPlaying && state.currentTrack && typeof bridge.resume === "function") {
+                    try { bridge.resume(); } catch { /* ignore */ }
                 }
             }
             notice = accept ? "对方加入了一起听。" : "对方拒绝了一起听邀请。";
-            const history = loadChatMessages(sessionId);
-            const inviteMsg = history.reverse().find(m => m.mediaData?.listeningInvite?.roomId === current.id);
-            if (inviteMsg?.mediaData?.listeningInvite) {
+            const history = typeof loadChatMessages === "function" ? loadChatMessages(sessionId) : [];
+            const inviteMsg = [...history].reverse().find(m => m?.mediaData?.listeningInvite?.roomId === current.id);
+            if (inviteMsg?.mediaData?.listeningInvite && typeof updateMessageMediaData === "function") {
                 updateMessageMediaData(inviteMsg.id, {
                     ...inviteMsg.mediaData,
                     listeningInvite: {
