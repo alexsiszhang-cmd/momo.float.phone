@@ -6,6 +6,7 @@ import { ConfirmDialog } from "./ui/modal";
 import { useAccount } from "@/lib/account-context";
 import { isSelfHostedModeEnabled } from "@/lib/self-hosting";
 import { changeAccountPassword } from "@/lib/account-client";
+import { changeFloatingTool } from "@/lib/floating-tools";
 import { ApiSettings } from "./settings/api-settings";
 import { VoiceSettings } from "./settings/voice-settings";
 import { ImageGenerationSettings } from "./settings/image-generation-settings";
@@ -127,6 +128,7 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
     const [timeAware, setTimeAware] = useState(true);
     const [promptViewerEnabled, setPromptViewerEnabled] = useState(false);
     const [quickActionEnabled, setQuickActionEnabled] = useState(false);
+    const [floatingToolsEnabled, setFloatingToolsEnabled] = useState(false);
     const [floatingDockEnabled, setFloatingDockEnabled] = useState(false);
     const [floatingDockSheetOpen, setFloatingDockSheetOpen] = useState(false);
     const [keepAlive, setKeepAlive] = useState(false);
@@ -243,15 +245,30 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
     }, [onNotice]);
 
     const handlePromptViewerChange = useCallback((next: boolean) => {
-        setPromptViewerEnabled(next);
-        saveChatAppSettings({ ...loadChatAppSettings(), promptViewerEnabled: next });
+        const updated = changeFloatingTool(loadChatAppSettings(), "promptViewerEnabled", next);
+        saveChatAppSettings(updated);
+        setPromptViewerEnabled(updated.promptViewerEnabled === true);
+        setQuickActionEnabled(updated.quickActionEnabled === true);
+        setFloatingToolsEnabled(updated.floatingToolsEnabled === true);
         onNotice(next ? "已开启提示词查看器" : "已关闭提示词查看器");
     }, [onNotice]);
 
     const handleQuickActionChange = useCallback((next: boolean) => {
-        setQuickActionEnabled(next);
-        saveChatAppSettings({ ...loadChatAppSettings(), quickActionEnabled: next });
+        const updated = changeFloatingTool(loadChatAppSettings(), "quickActionEnabled", next);
+        saveChatAppSettings(updated);
+        setPromptViewerEnabled(updated.promptViewerEnabled === true);
+        setQuickActionEnabled(updated.quickActionEnabled === true);
+        setFloatingToolsEnabled(updated.floatingToolsEnabled === true);
         onNotice(next ? "已开启快捷操作" : "已关闭快捷操作");
+    }, [onNotice]);
+
+    const handleFloatingToolsChange = useCallback((next: boolean) => {
+        const updated = changeFloatingTool(loadChatAppSettings(), "floatingToolsEnabled", next);
+        saveChatAppSettings(updated);
+        setPromptViewerEnabled(updated.promptViewerEnabled === true);
+        setQuickActionEnabled(updated.quickActionEnabled === true);
+        setFloatingToolsEnabled(updated.floatingToolsEnabled === true);
+        onNotice(next ? "已开启悬浮工具" : "已关闭悬浮工具");
     }, [onNotice]);
 
     const handleFloatingDockChange = useCallback((next: boolean) => {
@@ -388,6 +405,7 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
         setTimeAware(settings.timeAware !== false);
         setPromptViewerEnabled(settings.promptViewerEnabled === true);
         setQuickActionEnabled(settings.quickActionEnabled === true);
+        setFloatingToolsEnabled(settings.floatingToolsEnabled === true);
         setFloatingDockEnabled(settings.floatingDockEnabled === true);
         setKeepAlive(loadKeepAlive());
     }, []);
@@ -552,6 +570,20 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                                     </span>
                                     <span className="menu-right settings-tools-menu-toggle">
                                         <Toggle checked={quickActionEnabled} onChange={handleQuickActionChange} className="settings-toggle-control" />
+                                    </span>
+                                </div>
+                                <div className="menu-item settings-tools-menu-item">
+                                    <span className="card-icon card-icon-glass" style={quickActionIconStyle}>
+                                        <span aria-hidden="true" style={{ display: "grid", placeItems: "center", width: 30, height: 30, borderRadius: 10, background: "linear-gradient(145deg, #a6adba, #555f71)", boxShadow: "inset 0 1px 0 #ffffff80" }}>
+                                            <span style={{ width: 19, height: 19, borderRadius: "50%", border: "3px solid #ffffff55", background: "#ffffffe0", backgroundClip: "padding-box" }} />
+                                        </span>
+                                    </span>
+                                    <span className="settings-tools-menu-copy">
+                                        <span className="menu-label appearance-menu-item-label">悬浮工具</span>
+                                        <span className="menu-desc settings-tools-menu-desc">合并提示词与快捷操作，可拖动贴边</span>
+                                    </span>
+                                    <span className="menu-right settings-tools-menu-toggle">
+                                        <Toggle checked={floatingToolsEnabled} ariaLabel="悬浮工具" onChange={handleFloatingToolsChange} className="settings-toggle-control" />
                                     </span>
                                 </div>
                             </div>
