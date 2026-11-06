@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { ChatSession, ChatMessage, loadChatMessages, pushChatMessage, getLatestCharacterStateValues, resolveChatCharacterAvatar } from "@/lib/chat-storage";
+import { ChatSession, ChatMessage, loadChatMessages, pushChatMessage, updateChatMessage, deleteChatMessage, getLatestCharacterStateValues, resolveChatCharacterAvatar } from "@/lib/chat-storage";
 import { getStatusRegionConfig, isCustomStatusRegionActive } from "@/lib/chat-status-region";
 import type { StateValue } from "@/lib/chat-storage";
 import { parseStateValues, mergeStateValues } from "@/lib/state-value-parser";
@@ -25,6 +25,8 @@ import { startIncomingCallVibration } from "@/lib/call-vibration";
 import { useCallScreenSounds } from "@/lib/chat-sound";
 import { useCallAutoChat } from "./use-call-auto-chat";
 import { CallAutoChatControl } from "./call-auto-chat-control";
+import { CallSubtitleItem } from "./call-subtitle-item";
+import { releaseCallAudioRef } from "@/lib/call-audio-storage";
 
 // ── Types ───────────────────────────────────────────
 
@@ -40,6 +42,7 @@ type SubtitleEntry = {
     id: string;
     role: "user" | "assistant";
     text: string;
+    messageIds?: string[];
 };
 
 type VoiceCallScreenProps = {
@@ -343,7 +346,8 @@ export function VoiceCallScreen({ session, character, onEnd, onConnect, initiato
             .filter(p => !p.mediaType && p.content.trim())
             .map(p => p.content);
 
-        return { cleanParts, stateValues };
+        const messageIds = chatParts.length === 0 ? [] : messagesRef.current.slice(-chatParts.length).map(m => m.id);
+        return { cleanParts, stateValues, messageIds };
     }, [session.id, session.contactId]);
 
     const autoChatNotifyUserSpokeRef = useRef<() => void>(() => {});
@@ -380,7 +384,7 @@ export function VoiceCallScreen({ session, character, onEnd, onConnect, initiato
             if (stateRef.current === "ENDED") return;
 
             // 4. Process response
-            const { cleanParts } = processAIResponse(aiResponseText);
+            const { cleanParts, messageIds } = processAIResponse(aiResponseText);
             const displayText = cleanParts.join("\n");
             const speechText = stripBilingualForSpeech(displayText);
 
@@ -390,8 +394,8 @@ export function VoiceCallScreen({ session, character, onEnd, onConnect, initiato
             }
 
             // 5. Add AI subtitle
-            const subtitleId = `ai-${Date.now()}`;
-            setSubtitles(prev => [...prev, { id: subtitleId, role: "assistant", text: displayText }]);
+            const subtitleId = messageIds[0] || `ai-${Date.now()}`;
+            setSubtitles(prev => [...prev, { id: subtitleId, role: "assistant", text: displayText, messageIds }]);
 
             // 缩小为悬浮窗期间收到的回复：只静默记录文字，不播放语音
             if (minimizedRef.current) {
@@ -660,6 +664,59 @@ export function VoiceCallScreen({ session, character, onEnd, onConnect, initiato
         setTimeout(() => onEnd(), 1500);
     }, [session.id, callDuration, onEnd]);
 
+    const [replayingSubtitleId, setReplayingSubtitleId] = useState<string | null>(null);
+
+    const handleReplaySubtitle = useCallback(async (subId: string, text: string) => {
+        if (stateRef.current === "AI_SPEAKING" || stateRef.current === "USER_SPEAKING") return;
+        const voiceConfig = resolveVoiceConfig(session.contactId);
+        if (!voiceConfig) return;
+        setReplayingSubtitleId(subId);
+        try {
+            const speechText = stripBilingualForSpeech(text);
+            const audioBlob = await synthesizeSpeech(speechText, voiceConfig);
+            if (audioBlob) {
+                const { promise, abort } = playCallAudio(audioBlob);
+                audioAbortRef.current = abort;
+                await promise;
+                audioAbortRef.current = null;
+            }
+        } catch (e) {
+            console.warn("[VoiceCall] Replay failed:", e);
+        } finally {
+            setReplayingSubtitleId(null);
+        }
+    }, [session.contactId, playCallAudio]);
+
+    const handleEditSubtitle = useCallback((subId: string, nextText: string) => {
+        setSubtitles(prev => prev.map(s => s.id === subId ? { ...s, text: nextText } : s));
+        const sub = subtitles.find(s => s.id === subId);
+        const msgIds = sub?.messageIds && sub.messageIds.length > 0 ? sub.messageIds : [subId];
+        for (const id of msgIds) {
+            const target = messagesRef.current.find(m => m.id === id);
+            if (target) {
+                target.content = nextText;
+                if (target.mediaData?.callAudioRef) {
+                    void releaseCallAudioRef(target.mediaData.callAudioRef);
+                    target.mediaData = { ...target.mediaData, callAudioRef: undefined };
+                }
+                updateChatMessage(id, {
+                    content: nextText,
+                    mediaData: target.mediaData,
+                });
+            }
+        }
+    }, [subtitles]);
+
+    const handleDeleteSubtitle = useCallback((subId: string) => {
+        const sub = subtitles.find(s => s.id === subId);
+        setSubtitles(prev => prev.filter(s => s.id !== subId));
+        const msgIds = sub?.messageIds && sub.messageIds.length > 0 ? sub.messageIds : [subId];
+        messagesRef.current = messagesRef.current.filter(m => !msgIds.includes(m.id));
+        for (const id of msgIds) {
+            deleteChatMessage(id);
+        }
+    }, [subtitles]);
+
     // ── Render ──────────────────────────────────────
 
     if (minimized) {
@@ -779,13 +836,29 @@ export function VoiceCallScreen({ session, character, onEnd, onConnect, initiato
                     {...(inputMode === "text" && callState !== "CONNECTING" && callState !== "ENDED" ? { "data-text-input": "" } : {})}
                 >
                     {subtitles.map((sub) => (
-                        <div
+                        <CallSubtitleItem
                             key={sub.id}
-                            className="call-subtitle"
-                            data-role={sub.role}
-                        >
-                            <BilingualTextBlock text={sub.text} mode="plain" className="call-subtitle-bilingual" defaultExpanded={session.collapseBilingualTranslation !== false ? false : true} />
-                        </div>
+                            role={sub.role}
+                            text={sub.text}
+                            bilingualClassName="call-subtitle-bilingual"
+                            defaultExpanded={session.collapseBilingualTranslation !== false}
+                            onReplay={sub.role === "assistant" ? () => void handleReplaySubtitle(sub.id, sub.text) : undefined}
+                            replaying={replayingSubtitleId === sub.id}
+                            onEditSubmit={(nextText) => handleEditSubtitle(sub.id, nextText)}
+                            actions={[
+                                ...(sub.role === "assistant" && callState === "IDLE" ? [{
+                                    key: "regenerate",
+                                    label: "重新生成这句",
+                                    onSelect: () => handleRegenerate(),
+                                }] : []),
+                                {
+                                    key: "delete",
+                                    label: "删除这句",
+                                    danger: true,
+                                    onSelect: () => handleDeleteSubtitle(sub.id),
+                                },
+                            ]}
+                        />
                     ))}
 
                     {/* Interim STT text */}
