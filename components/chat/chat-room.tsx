@@ -39,9 +39,7 @@ import { CustomAppRunner } from "@/components/app-market/custom-app-runner";
 import { CustomAppForegroundBoundary } from "@/components/app-market/custom-app-failure";
 
 import { ChatSettingsPanel } from "./chat-settings-panel";
-import { VoiceCallScreen } from "./voice-call-screen";
-import { VideoCallScreen } from "./video-call-screen";
-import { GroupCallScreen } from "./group-call-screen";
+import { startCall } from "@/lib/call-session-store";
 import { TransferTargetModal } from "./transfer-target-modal";
 import { GiftPickerModal } from "./gift-picker-modal";
 import { ConfirmDialog } from "@/components/ui/modal";
@@ -1178,10 +1176,16 @@ export function ChatRoom({ session, onBack, onDeleted, onUserMessageSent, contac
         if (!contactCallRequest || handledContactCall.current === contactCallRequest.id) return;
         handledContactCall.current = contactCallRequest.id;
         cancelFollowUp(session.id);
-        setShowPlusMenu(false); setCallInitiator("user");
-        if (contactCallRequest.type === "voice") setShowVoiceCall(true); else setShowVideoCall(true);
+        setShowPlusMenu(false);
+        startCall({
+            sessionId: session.id,
+            characterId: session.contactId,
+            kind: contactCallRequest.type === "video" ? "video" : "voice",
+            direction: "outgoing",
+            initiator: "user",
+        });
         onContactCallHandled?.();
-    }, [contactCallRequest, onContactCallHandled, session.id]);
+    }, [contactCallRequest, onContactCallHandled, session.contactId, session.id]);
     const [userIdentity, setUserIdentity] = useState<UserIdentity | null>(null);
     const [enterToSendEnabled, setEnterToSendEnabled] = useState(() => loadChatAppSettings().enterToSendEnabled === true);
     const [storyEntryEnabled, setStoryEntryEnabled] = useState(() => loadChatAppSettings().storyAsOfflineMode === true);
@@ -2206,16 +2210,32 @@ export function ChatRoom({ session, onBack, onDeleted, onUserMessageSent, contac
             if (detail?.sessionId === session.id) {
                 // Only handle call if this ChatRoom is currently visible
                 if (!isChatRoomElementVisible(wrapperRef.current)) return;
-                setCallInitiator("character");
-                if (detail.type === "voice") setShowVoiceCall(true);
-                else if (detail.type === "video") setShowVideoCall(true);
+                startCall({
+                    sessionId: session.id,
+                    characterId: session.contactId,
+                    kind: detail.type === "video" ? "video" : "voice",
+                    direction: "incoming",
+                    initiator: "character",
+                });
                 // Dismiss the global incoming-call bar (if showing)
                 window.dispatchEvent(new CustomEvent("incoming-call-dismiss"));
             }
         };
         window.addEventListener("ai-call-trigger", handler);
         return () => window.removeEventListener("ai-call-trigger", handler);
-    }, [session.id]);
+    }, [session.contactId, session.id]);
+
+    // 通话结束时刷新消息列表
+    useEffect(() => {
+        const handler = (e: Event) => {
+            const detail = (e as CustomEvent<{ sessionId?: string }>).detail;
+            if (!detail?.sessionId || detail.sessionId === session.id) {
+                syncMessagesFromStorage();
+            }
+        };
+        window.addEventListener("chat-call-ended", handler);
+        return () => window.removeEventListener("chat-call-ended", handler);
+    }, [session.id, syncMessagesFromStorage]);
 
     // Helper: handle AI accepting/declining user's red packet or transfer
     const buildAssistantActionEditMeta = (rawResponseText: string) => ({
@@ -3217,9 +3237,13 @@ export function ChatRoom({ session, onBack, onDeleted, onUserMessageSent, contac
     // Helper: handle AI-triggered call from splitAndSaveAIMessages result
     const handleCallTrigger = (triggerCall?: "voice" | "video") => {
         if (!triggerCall) return;
-        setCallInitiator("character");
-        if (triggerCall === "voice") setShowVoiceCall(true);
-        else setShowVideoCall(true);
+        startCall({
+            sessionId: session.id,
+            characterId: session.contactId,
+            kind: triggerCall === "video" ? "video" : "voice",
+            direction: "incoming",
+            initiator: "character",
+        });
     };
 
     const persistHiddenToolResult = (content?: string, toolExecutionId?: string) => {
@@ -6761,8 +6785,28 @@ export function ChatRoom({ session, onBack, onDeleted, onUserMessageSent, contac
                             setRichModal(modal);
                         }}
                 onOpenCustomPlusAction={handleOpenCustomPlusAction}
-                onStartVideoCall={() => { cancelFollowUp(session.id); setShowPlusMenu(false); setCallInitiator("user"); setShowVideoCall(true); }}
-                onStartVoiceCall={() => { cancelFollowUp(session.id); setShowPlusMenu(false); setCallInitiator("user"); setShowVoiceCall(true); }}
+                onStartVideoCall={() => {
+                    cancelFollowUp(session.id);
+                    setShowPlusMenu(false);
+                    startCall({
+                        sessionId: session.id,
+                        characterId: session.contactId,
+                        kind: "video",
+                        direction: "outgoing",
+                        initiator: "user",
+                    });
+                }}
+                onStartVoiceCall={() => {
+                    cancelFollowUp(session.id);
+                    setShowPlusMenu(false);
+                    startCall({
+                        sessionId: session.id,
+                        characterId: session.contactId,
+                        kind: "voice",
+                        direction: "outgoing",
+                        initiator: "user",
+                    });
+                }}
                 onSendText={handleSendText}
                 onStopGeneration={clearStuckGeneration}
                 onTriggerAIResponse={triggerAIResponse}
@@ -7296,35 +7340,7 @@ export function ChatRoom({ session, onBack, onDeleted, onUserMessageSent, contac
                 </div>
             )}
 
-            {/* 单聊语音/视频通话：内联挂载（而非提前 return），使缩小为悬浮窗时通话组件
-                不被卸载，计时/字幕等状态得以保留；组件内部依据 minimized 决定渲染
-                全屏界面还是左侧悬浮窗 */}
-            {/* 通话层挂到聊天室的父容器，脱离 session 自定义 CSS 的作用域。
-                这样用户美化 header/footer、定位和 z-index 时不会遮挡通话顶栏/底栏。 */}
-            {wrapperRef.current?.parentElement && showVoiceCall && character && createPortal(
-                <VoiceCallScreen
-                    session={session}
-                    character={character}
-                    initiator={callInitiator}
-                    minimized={callMinimized}
-                    onMinimize={() => setCallMinimized(true)}
-                    onRestore={() => setCallMinimized(false)}
-                    onEnd={() => returnFromCall(() => setShowVoiceCall(false))}
-                />,
-                wrapperRef.current.parentElement,
-            )}
-            {wrapperRef.current?.parentElement && showVideoCall && character && createPortal(
-                <VideoCallScreen
-                    session={session}
-                    character={character}
-                    initiator={callInitiator}
-                    minimized={callMinimized}
-                    onMinimize={() => setCallMinimized(true)}
-                    onRestore={() => setCallMinimized(false)}
-                    onEnd={() => returnFromCall(() => setShowVideoCall(false))}
-                />,
-                wrapperRef.current.parentElement,
-            )}
+
 
             {showMusicPanel && (
                 <ChatMusicPanel

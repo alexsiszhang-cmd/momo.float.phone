@@ -35,6 +35,7 @@ import { DwellingApp } from "@/components/dwelling/dwelling-app";
 import { MascotFloat } from "@/components/mascot/mascot-float";
 import { PerceptionBootstrap } from "@/components/perception/perception-bootstrap";
 import { MascotPreviewHost } from "@/components/mascot/mascot-preview-host";
+import { CallLayer } from "@/components/chat/call-layer";
 import { useMusicControlsOptional } from "@/lib/music-context";
 import { PhoneResourcesApp, type ResourceSubPage } from "@/components/phone-resources-app";
 import { CheckPhoneApp } from "@/components/checkphone/checkphone-app";
@@ -1073,6 +1074,14 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
     syncIconStyles();
     window.addEventListener(CUSTOM_APPS_UPDATED_EVENT, syncIconStyles);
     return () => window.removeEventListener(CUSTOM_APPS_UPDATED_EVENT, syncIconStyles);
+  }, []);
+  useEffect(() => {
+    const onEnded = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { sessionId?: string };
+      if (detail?.sessionId) void requestBackgroundChatReply(detail.sessionId);
+    };
+    window.addEventListener("chat-call-ended", onEnded);
+    return () => window.removeEventListener("chat-call-ended", onEnded);
   }, []);
   const [customAppUpdatePrompt, setCustomAppUpdatePrompt] = useState<PendingCustomAppUpdatePrompt | null>(null);
   const [customAppUpdateBusy, setCustomAppUpdateBusy] = useState(false);
@@ -4843,6 +4852,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
               <MascotFloat />
               {/* 预览弹窗宿主：独立于桌宠的展开/收起状态，否则桌宠收成小球时弹不出来 */}
               <MascotPreviewHost />
+              <CallLayer />
 
               {/* Widget Picker Bottom Sheet */}
               {showWidgetPicker && (
