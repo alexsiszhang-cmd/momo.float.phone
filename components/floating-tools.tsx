@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent } from "react";
-import { ArrowLeft, BookOpen, Check, Code2, FileText, X } from "lucide-react";
+import { ArrowLeft, BookOpen, Check, Code2, FileText, MessageCircle, Wrench, X } from "lucide-react";
 import { CHAT_APP_SETTINGS_UPDATED_EVENT, loadChatAppSettings, saveChatAppSettings, type ChatAppSettings, type ChatSession } from "@/lib/chat-storage";
 import { getFloatingBindingSlot, isCombinedToolsEnabled, updateFloatingBinding, type FloatingBindingTarget } from "@/lib/floating-tools";
 import { getFloatingPageContext, subscribeFloatingPageContext } from "@/lib/floating-tools-context";
@@ -215,12 +215,14 @@ export function FloatingTools({ activeApp, chatSession }: { activeApp: string | 
                         <button type="button" onClick={() => setView("prompt")}><FileText className={styles.pink} />提示词</button>
                         <button type="button" disabled={!target} onClick={() => setView("api")}><Code2 className={styles.blue} />API</button>
                         <button type="button" disabled={!target} onClick={() => setView("books")}><BookOpen className={styles.green} />世界书</button>
+                        <button type="button" title="开启原生聊天画中画小窗" onClick={() => { setView(null); window.dispatchEvent(new CustomEvent("open-mini-chat")); }}><MessageCircle className={styles.cyan} />小窗</button>
+                        <button type="button" title="前往工坊" onClick={() => { setView(null); window.dispatchEvent(new CustomEvent("mascot-navigate", { detail: { app: "qa" } })); }}><Wrench className={styles.amber} />工坊</button>
                         <button type="button" aria-label={`前往${shortcut.label}`} onClick={navigate}><ArrowLeft />{shortcut.label}</button>
                     </div>
                     <button className={styles.shortcut} type="button" onClick={() => setView("shortcut")}>快捷入口 <span>更改 ›</span></button>
                     {!target && <p className={styles.note}>进入生成内容的页面后，可调整该页面的 API 与世界书。</p>}
                 </>}
-                {view === "shortcut" && <div className={styles.detail}><h3>快捷入口</h3><p>轻点第四格，前往所选页面。</p>{SHORTCUTS.map(item => <button type="button" className={styles.option} key={item.id} aria-pressed={shortcut.id === item.id} onClick={() => saveChatAppSettings({ ...loadChatAppSettings(), floatingToolsShortcut: item.id })}>{item.label}{shortcut.id === item.id && <Check size={17} />}</button>)}</div>}
+                {view === "shortcut" && <div className={styles.detail}><h3>快捷入口</h3><p>轻点第六格，前往所选页面。</p>{SHORTCUTS.map(item => <button type="button" className={styles.option} key={item.id} aria-pressed={shortcut.id === item.id} onClick={() => saveChatAppSettings({ ...loadChatAppSettings(), floatingToolsShortcut: item.id })}>{item.label}{shortcut.id === item.id && <Check size={17} />}</button>)}</div>}
                 {view === "api" && <div className={styles.detail}><h3>本页 API</h3><p>{scopeNote}</p><button type="button" className={styles.option} aria-pressed={!slot.apiConfigId} onClick={() => update({ apiConfigId: undefined })}><span>继承原配置<small>{apis.find(api => api.id === inheritedApi)?.name || "尚未配置"}</small></span>{!slot.apiConfigId && <Check size={17} />}</button>{apis.map(api => <button type="button" className={styles.option} key={api.id} aria-pressed={slot.apiConfigId === api.id} onClick={() => update({ apiConfigId: api.id })}><span>{api.name}<small>{api.defaultModel}</small></span>{slot.apiConfigId === api.id && <Check size={17} />}</button>)}{!apis.length && <p>请先在设置中添加 API。</p>}</div>}
                 {view === "books" && <div className={styles.detail}><h3>本页世界书</h3><p>{scopeNote}</p><button type="button" className={styles.option} aria-pressed={slot.worldBookMode !== "replace"} onClick={() => update({ worldBookIds: undefined, worldBookMode: undefined })}>恢复继承{slot.worldBookMode !== "replace" && <Check size={17} />}</button><p>{slot.worldBookMode === "replace" ? "本页单独选择；全不选即停用继承世界书。" : "目前沿用已有绑定及角色世界。勾选后改为本页单独选择。"}</p>{books.map(book => {
                     const checked = resolved.worldBookIds?.includes(book.id) === true;
