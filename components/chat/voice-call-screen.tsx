@@ -23,6 +23,8 @@ import { isAndroidBrowser, isIOSDevice } from "./voice-input-platform";
 import { CallVolumeControl } from "./call-volume-control";
 import { startIncomingCallVibration } from "@/lib/call-vibration";
 import { useCallScreenSounds } from "@/lib/chat-sound";
+import { useCallAutoChat } from "./use-call-auto-chat";
+import { CallAutoChatControl } from "./call-auto-chat-control";
 
 // ── Types ───────────────────────────────────────────
 
@@ -344,11 +346,15 @@ export function VoiceCallScreen({ session, character, onEnd, onConnect, initiato
         return { cleanParts, stateValues };
     }, [session.id, session.contactId]);
 
+    const autoChatNotifyUserSpokeRef = useRef<() => void>(() => {});
+    const autoChatNotifyAssistantSpokeRef = useRef<(spoke: boolean) => void>(() => {});
+
     // ── Full conversation turn ──────────────────────
 
     const runConversationTurn = useCallback(async (userText?: string) => {
         // 1. Save user message (skip for initial greeting)
         if (userText) {
+            autoChatNotifyUserSpokeRef.current();
             const userMsg = pushChatMessage({
                 sessionId: session.id,
                 role: "user",
@@ -415,6 +421,7 @@ export function VoiceCallScreen({ session, character, onEnd, onConnect, initiato
 
             if (stateRef.current !== "ENDED") {
                 setCallState("IDLE");
+                autoChatNotifyAssistantSpokeRef.current(cleanParts.length > 0);
             }
         } catch (error: any) {
             console.error("[VoiceCall] Error:", error);
@@ -425,9 +432,30 @@ export function VoiceCallScreen({ session, character, onEnd, onConnect, initiato
                     text: `⚠️ ${error?.message || "发送失败"}`,
                 }]);
                 setCallState("IDLE");
+                autoChatNotifyAssistantSpokeRef.current(false);
             }
         }
     }, [session, processAIResponse, playCallAudio]);
+
+    const autoChat = useCallAutoChat({
+        active: callState !== "CONNECTING" && callState !== "ENDED",
+        callStateRef: stateRef,
+        runTurn: () => {
+            void runConversationTurn();
+        },
+        beforeTrigger: () => {
+            if (sttRef.current) {
+                sttRef.current.abort();
+                sttRef.current = null;
+            }
+            setInterimText("");
+        },
+    });
+
+    useEffect(() => {
+        autoChatNotifyUserSpokeRef.current = autoChat.notifyUserSpoke;
+        autoChatNotifyAssistantSpokeRef.current = autoChat.notifyAssistantSpoke;
+    }, [autoChat.notifyUserSpoke, autoChat.notifyAssistantSpoke]);
 
     // ── Auto-listen: 进入 IDLE 自动开始监听 ────────
 
@@ -662,6 +690,13 @@ export function VoiceCallScreen({ session, character, onEnd, onConnect, initiato
             />
 
             <CallVolumeControl />
+
+            {callState !== "CONNECTING" && callState !== "ENDED" && (
+                <CallAutoChatControl
+                    config={autoChat.config}
+                    onUpdate={autoChat.update}
+                />
+            )}
 
             {onMinimize && callState !== "ENDED" && (
                 <button
