@@ -75,8 +75,6 @@ import { formatCustomAppChatDirectivesForPrompt } from "./custom-app-chat-direct
 import { loadAllTracks } from "./music-storage";
 import { getActiveAppTags } from "./content-tag-utils";
 import { isNeteaseConfigured, getUserPlaylists, getPlaylistTracks, checkLoginStatus, loadMusicApiConfig } from "./music-service";
-import { listeningRoomPrompt } from "./listen-together";
-import { CHARACTER_LISTENING_INVITE_PROTOCOL } from "./music-sharing-protocol";
 import { buildCalendarScheduleMarker, getCurrentCalendarScheduleForPrompt } from "./calendar-storage";
 import { getWeekStartIso } from "./calendar-utils";
 import { buildCharacterTimeContext } from "./character-time";
@@ -1983,18 +1981,7 @@ export async function buildChatPromptMessages(
         hint: buildChatPluginPromptFragments(session.id),
     });
     const pluginPromptHint = pluginPrompt.hint?.trim() ? `\n\n### 扩展插件\n${pluginPrompt.hint.trim()}\n` : "";
-    let listeningPrompt = "";
-    try {
-        if (typeof listeningRoomPrompt === "function") {
-            listeningPrompt = listeningRoomPrompt(character.id, session.id) || "";
-        }
-    } catch (e) {
-        console.warn("[ChatEngine] listeningRoomPrompt error:", e);
-    }
-    const musicListeningPrompt = listeningPrompt
-        ? `\n\n### 一起听与音乐协议\n${CHARACTER_LISTENING_INVITE_PROTOCOL}\n${listeningPrompt}\n`
-        : `\n\n### 音乐分享协议\n${CHARACTER_LISTENING_INVITE_PROTOCOL}\n`;
-    const customAppRichMediaDirectives = formatCustomAppChatDirectivesForPrompt() + buildScreenEffectPromptHint() + pluginPromptHint + musicListeningPrompt;
+    const customAppRichMediaDirectives = formatCustomAppChatDirectivesForPrompt() + buildScreenEffectPromptHint() + pluginPromptHint;
     const toolsPrompt = toolsEnabled && !usesNativeActions ? formatToolsForPrompt(enabledTools) : "";
     const chatBilingualInstruction = !session.isGroup
         ? buildChatBilingualInstruction(session.bilingualTranslationEnabled !== false, "single", session.bilingualTranslationPrompt)

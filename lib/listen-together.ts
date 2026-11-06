@@ -18,19 +18,12 @@ export type ListeningRoom = {
     song?: { title?: string; artist?: string; coverUrl?: string };
 };
 
+// A live room belongs to this phone realm; reload/switch does not revive a stale invitation.
 let room: ListeningRoom | null = null;
 const listeners = new Set<() => void>();
-function emit() {
-    if (typeof window !== "undefined") {
-        try {
-            if (room && room.status !== "declined") {
-                localStorage.setItem("active_listening_room", JSON.stringify(room));
-            } else {
-                localStorage.removeItem("active_listening_room");
-            }
-        } catch { /* ignore */ }
-    }
-    listeners.forEach(listener => listener());
+function emit() { listeners.forEach(listener => listener()); }
+if (typeof window !== "undefined") {
+    try { localStorage.removeItem("active_listening_room"); } catch { /* ignore */ }
 }
 let accountingTimer: ReturnType<typeof setInterval> | undefined;
 let previousSample: { roomId: string; at: number; time: number; trackId: string; playing: boolean } | null = null;
@@ -139,17 +132,6 @@ export function subscribeListeningRoom(listener: () => void) {
 }
 
 export function getListeningRoom(): ListeningRoom | null {
-    if (!room && typeof window !== "undefined") {
-        try {
-            const raw = localStorage.getItem("active_listening_room");
-            if (raw) {
-                const parsed = JSON.parse(raw);
-                if (parsed && typeof parsed === "object" && parsed.id && parsed.status !== "declined") {
-                    room = parsed;
-                }
-            }
-        } catch { /* ignore */ }
-    }
     return room;
 }
 

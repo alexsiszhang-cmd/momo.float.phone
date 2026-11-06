@@ -40,8 +40,6 @@ import {
 } from "./chat-engine";
 import type { CustomAppPromptProfile } from "./custom-app-types";
 import { isNeteaseConfigured } from "./music-service";
-import { groupListeningRoomPrompt } from "./listen-together";
-import { CHARACTER_LISTENING_INVITE_PROTOCOL } from "./music-sharing-protocol";
 import { buildCalendarScheduleMarker, getCurrentCalendarScheduleForPrompt } from "./calendar-storage";
 import { getWeekStartIso } from "./calendar-utils";
 import {
@@ -449,18 +447,7 @@ async function buildGroupChatPromptMessages(
         hint: buildChatPluginPromptFragments(session.id),
     });
     const pluginPromptHint = pluginPrompt.hint?.trim() ? `\n\n### 扩展插件\n${pluginPrompt.hint.trim()}\n` : "";
-    let listeningPrompt = "";
-    try {
-        if (typeof groupListeningRoomPrompt === "function") {
-            listeningPrompt = groupListeningRoomPrompt(session.id, members.map(m => m.character.id)) || "";
-        }
-    } catch (e) {
-        console.warn("[GroupChatEngine] groupListeningRoomPrompt error:", e);
-    }
-    const musicListeningPrompt = listeningPrompt
-        ? `\n\n### 一起听与音乐协议\n${CHARACTER_LISTENING_INVITE_PROTOCOL}\n${listeningPrompt}\n`
-        : `\n\n### 音乐分享协议\n${CHARACTER_LISTENING_INVITE_PROTOCOL}\n`;
-    const customAppRichMediaDirectives = formatCustomAppChatDirectivesForPrompt({ group: true }) + buildScreenEffectPromptHint() + pluginPromptHint + musicListeningPrompt;
+    const customAppRichMediaDirectives = formatCustomAppChatDirectivesForPrompt({ group: true }) + buildScreenEffectPromptHint() + pluginPromptHint;
     const toolsPrompt = usesNativeActions
         ? "需要动作时使用可用动作接口。"
         : formatToolsForPrompt(enabledTools);

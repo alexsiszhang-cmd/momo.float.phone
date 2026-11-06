@@ -1,5 +1,7 @@
 // lib/llm-prompt-assembler.ts
 
+import { listeningRoomPrompt, CHARACTER_LISTENING_INVITE_PROTOCOL } from "./listen-together";
+import { MUSIC_LISTENING_INSTRUCTION } from "./music-listening";
 import { Character } from "./character-types";
 import { ChatMessage } from "./chat-storage";
 import type { StateValue } from "./chat-storage";
@@ -1139,6 +1141,17 @@ export function assemblePromptPayload(input: AssemblerInput): LLMMessage[] {
             };
             finalPayload.splice(i, 1);
         }
+    }
+
+    if (appId === "chat" && activeTags.includes("text") && history.at(-1)?.sessionId) {
+        finalPayload.push({ role: "system", content: CHARACTER_LISTENING_INVITE_PROTOCOL, _debugMeta: { marker: "character_listening_invite" } });
+    }
+    const together = appId === "chat" ? (typeof listeningRoomPrompt === "function" ? listeningRoomPrompt(character.id, history.at(-1)?.sessionId) : "") : "";
+    if (together || history.some(message => (message as any).listeningContext || message.mediaType === "music_share" || message.mediaType === "music")) {
+        finalPayload.push({ role: "system", content: MUSIC_LISTENING_INSTRUCTION, _debugMeta: { marker: "music_listening" } });
+    }
+    if (appId === "chat" && together) {
+        finalPayload.push({ role: "system", content: together, _debugMeta: { marker: "listen_together" } });
     }
 
     return finalPayload;
