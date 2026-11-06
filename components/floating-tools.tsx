@@ -30,6 +30,7 @@ export function FloatingTools({ activeApp, chatSession }: { activeApp: string | 
     const [ready, setReady] = useState(false);
     const [dragging, setDragging] = useState(false);
     const [idle, setIdle] = useState(false);
+    const [edge, setEdge] = useState<"left" | "right">("right");
     const [revision, setRevision] = useState(0);
     const layerRef = useRef<HTMLDivElement>(null);
     const buttonRef = useRef<HTMLButtonElement>(null);
@@ -76,14 +77,16 @@ export function FloatingTools({ activeApp, chatSession }: { activeApp: string | 
         const layer = layerRef.current;
         if (!layer) return;
         const safe = Number.parseFloat(getComputedStyle(layer).getPropertyValue("--safe-area-top")) || 48;
-        const x = snap ? (edgeRef.current === "left" ? 8 : layer.clientWidth - 62) : next.x;
-        const p = { x: Math.max(8, Math.min(layer.clientWidth - 62, x)), y: Math.max(safe + 16, Math.min(layer.clientHeight - 86, next.y)) };
+        const x = snap ? (edgeRef.current === "left" ? 0 : layer.clientWidth - 54) : next.x;
+        const p = { x: Math.max(0, Math.min(layer.clientWidth - 54, x)), y: Math.max(safe + 16, Math.min(layer.clientHeight - 86, next.y)) };
         positionRef.current = p; setPosition(p);
     }, []);
     useLayoutEffect(() => {
         if (!enabled || !layerRef.current) { setReady(false); return; }
         const saved = loadChatAppSettings().floatingToolsPosition;
-        edgeRef.current = saved?.edge === "left" ? "left" : "right";
+        const savedEdge = saved?.edge === "left" ? "left" : "right";
+        edgeRef.current = savedEdge;
+        setEdge(savedEdge);
         const ratio = Number.isFinite(saved?.ratio) ? Math.max(0, Math.min(1, saved!.ratio)) : .61;
         place({ x: 0, y: layerRef.current.clientHeight * ratio }, true);
         setReady(true);
@@ -156,7 +159,9 @@ export function FloatingTools({ activeApp, chatSession }: { activeApp: string | 
         dragRef.current = null; setDragging(false);
         if (drag.moved) {
             ignoreClick.current = event.type !== "pointercancel";
-            edgeRef.current = positionRef.current.x + 27 < layer.clientWidth / 2 ? "left" : "right";
+            const nextEdge = positionRef.current.x + 27 < layer.clientWidth / 2 ? "left" : "right";
+            edgeRef.current = nextEdge;
+            setEdge(nextEdge);
             place(positionRef.current, true);
             saveChatAppSettings({ ...loadChatAppSettings(), floatingToolsPosition: { edge: edgeRef.current, ratio: positionRef.current.y / layer.clientHeight } });
         } else if (event.type === "pointerup" && event.pointerType === "touch") {
@@ -186,8 +191,13 @@ export function FloatingTools({ activeApp, chatSession }: { activeApp: string | 
     const scopeNote = target?.characterId ? "只调整此角色在本应用的配置，从下一次请求生效。" : "调整本应用默认配置；角色的应用专属配置仍优先。";
     return <div ref={layerRef} className={styles.layer} data-floating-tools="">
         <button ref={buttonRef} className={styles.assist} type="button" aria-label="打开悬浮工具" aria-expanded={!!view} aria-controls="combined-floating-panel"
-            data-idle={idle && !view || undefined} data-dragging={dragging || undefined} hidden={!!view || !ready}
-            style={{ transform: `translate(${position.x}px, ${position.y}px)` }}
+            data-edge={edge}
+            data-idle={idle && !view || undefined}
+            data-dragging={dragging || undefined}
+            hidden={!!view || !ready}
+            style={{
+                transform: `translate(${position.x}px, ${position.y}px)${idle && !view && !dragging ? (edge === "right" ? " translateX(38px)" : " translateX(-38px)") : ""}`
+            }}
             onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerEnd} onPointerCancel={pointerEnd} onLostPointerCapture={pointerEnd}
             onClick={() => { if (ignoreClick.current) { ignoreClick.current = false; return; } if (tapTimer.current) clearTimeout(tapTimer.current); setRevision(n => n + 1); setView("menu"); }}
             onKeyDown={event => {
