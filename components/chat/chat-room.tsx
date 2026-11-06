@@ -2971,9 +2971,14 @@ export function ChatRoom({ session, onBack, onDeleted, onUserMessageSent, contac
         const forcedStory = forcedStoryEnabled
             ? extractForcedStoryTrigger(aiResponseText)
             : { text: aiResponseText, description: undefined };
-        aiResponseText = typeof applyListeningRoomReply === "function"
-            ? applyListeningRoomReply(forcedStory.text, session.id, session.contactId, responseBatchId)
-            : forcedStory.text;
+        try {
+            aiResponseText = typeof applyListeningRoomReply === "function"
+                ? applyListeningRoomReply(forcedStory.text, session.id, session.contactId, responseBatchId)
+                : forcedStory.text;
+        } catch (listeningReplyErr) {
+            console.warn("[ChatRoom] applyListeningRoomReply failed safely:", listeningReplyErr);
+            aiResponseText = forcedStory.text;
+        }
         const rawResponseText = options?.rawResponseText
             ? extractForcedStoryTrigger(options.rawResponseText).text
             : aiResponseText;
@@ -3539,8 +3544,8 @@ export function ChatRoom({ session, onBack, onDeleted, onUserMessageSent, contac
         } catch (error: any) {
             if (!isCurrentGeneration() || isAbortLikeError(error)) return;
             console.error(`[ChatRoom] ${errorPrefix} error:`, error);
-            const stackFirstLine = typeof error?.stack === "string" ? error.stack.split("\n").slice(0, 3).join("\n") : "";
-            const detailText = stackFirstLine ? `\n${stackFirstLine}` : "";
+            const stackLines = typeof error?.stack === "string" ? error.stack.split("\n").slice(0, 10).map((l: string) => l.trim()).join("\n") : "";
+            const detailText = stackLines ? `\n${stackLines}` : "";
             const errorMsg = pushChatMessage({
                 sessionId: session.id,
                 role: "system",
@@ -4098,8 +4103,8 @@ export function ChatRoom({ session, onBack, onDeleted, onUserMessageSent, contac
         } catch (error: any) {
             if (!isCurrentGeneration() || isAbortLikeError(error)) return;
             console.error("[ChatRoom] triggerAIResponse error:", error);
-            const stackFirstLine = typeof error?.stack === "string" ? error.stack.split("\n").slice(0, 3).join("\n") : "";
-            const detailText = stackFirstLine ? `\n${stackFirstLine}` : "";
+            const stackLines = typeof error?.stack === "string" ? error.stack.split("\n").slice(0, 10).map((l: string) => l.trim()).join("\n") : "";
+            const detailText = stackLines ? `\n${stackLines}` : "";
             const errorMsg = pushChatMessage({
                 sessionId: session.id,
                 role: "system",
