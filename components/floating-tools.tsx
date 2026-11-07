@@ -19,7 +19,7 @@ const SHORTCUTS = [
     { id: "settings:worldbook", label: "世界书" }, { id: "settings:api", label: "API 设置" },
 ];
 // Only applications with verified resolveBinding request paths are exposed here.
-const BINDING_APPS = new Set(["diary", "reading", "cocreate", "story", "game", "xiaohongshu", "dwelling", "checkphone", "shopping", "calendar", "interview_magazine", "vn", "adventure"]);
+const BINDING_APPS = new Set(["chat", "diary", "reading", "cocreate", "story", "game", "xiaohongshu", "dwelling", "checkphone", "shopping", "calendar", "interview_magazine", "vn", "adventure"]);
 
 export function FloatingTools({ activeApp, chatSession }: { activeApp: string | null; chatSession: ChatSession | null }) {
     const nested = useSyncExternalStore(subscribeFloatingPageContext, getFloatingPageContext, () => null);
@@ -50,8 +50,8 @@ export function FloatingTools({ activeApp, chatSession }: { activeApp: string | 
             ? { appId: chatSession.isGroup ? "group_chat" : "chat", characterId: chatSession.isGroup ? undefined : chatSession.contactId }
             : activeApp && BINDING_APPS.has(activeApp) ? { appId: activeApp } : null;
     const targetKey = target ? `${target.appId}:${target.characterId || "app"}` : "none";
-    const scopeLabel = override?.label || (target?.appId === "chat" ? "当前角色 · 聊天"
-        : target ? `${CONTENT_APP_LABELS[target.appId as ContentAppId] || target.appId} · 应用默认` : "悬浮工具");
+    const scopeLabel = override?.label || (target?.appId === "chat" && target.characterId ? "当前角色 · 聊天"
+        : target ? `${CONTENT_APP_LABELS[target.appId as ContentAppId] || target.appId} · 应用默认` : "全局默认");
     const previousContext = useRef(`${activeApp}:${targetKey}`);
 
     useEffect(() => {
@@ -172,15 +172,15 @@ export function FloatingTools({ activeApp, chatSession }: { activeApp: string | 
 
     if (!enabled) return null;
     const config = view ? loadBindingConfig() : null;
-    const slot = config && target ? getFloatingBindingSlot(config, target) : {};
-    const resolved = config && target ? resolveBinding(config, target.characterId, target.appId) : {};
+    const slot = config ? getFloatingBindingSlot(config, target) : {};
+    const resolved = config ? resolveBinding(config, target?.characterId, target?.appId) : {};
     const inheritedApi = view === "api" && config && target
         ? resolveBinding(updateFloatingBinding(config, target, { apiConfigId: undefined }), target.characterId, target.appId).apiConfigId
         : undefined;
     const apis = view === "api" ? loadApiConfigs() : [];
     const books = view === "books" ? loadWorldBooks() : [];
     function update(patch: Partial<BindingSlot>) {
-        if (target) saveBindingConfig(updateFloatingBinding(loadBindingConfig(), target, patch));
+        saveBindingConfig(updateFloatingBinding(loadBindingConfig(), target, patch));
     }
     function navigate() {
         setView(null);
@@ -188,7 +188,11 @@ export function FloatingTools({ activeApp, chatSession }: { activeApp: string | 
         if (app === "settings" && !mode) window.dispatchEvent(new CustomEvent("settings-navigate", { detail: { page: "main" } }));
         window.dispatchEvent(new CustomEvent("mascot-navigate", { detail: { app, mode } }));
     }
-    const scopeNote = target?.characterId ? "只调整此角色在本应用的配置，从下一次请求生效。" : "调整本应用默认配置；角色的应用专属配置仍优先。";
+    const scopeNote = target?.characterId
+        ? "只调整此角色在本应用的配置，从下一次请求生效。"
+        : target
+            ? "调整本应用默认配置；角色的应用专属配置仍优先。"
+            : "调整全局默认配置；未单独配置的应用与角色将沿用此设置。";
     return <div ref={layerRef} className={styles.layer} data-floating-tools="">
         <button ref={buttonRef} className={styles.assist} type="button" aria-label="打开悬浮工具" aria-expanded={!!view} aria-controls="combined-floating-panel"
             data-edge={edge}
@@ -213,24 +217,45 @@ export function FloatingTools({ activeApp, chatSession }: { activeApp: string | 
                 {view === "menu" && <>
                     <div className={styles.tiles}>
                         <button type="button" onClick={() => setView("prompt")}><FileText className={styles.pink} />提示词</button>
-                        <button type="button" disabled={!target} onClick={() => setView("api")}><Code2 className={styles.blue} />API</button>
-                        <button type="button" disabled={!target} onClick={() => setView("books")}><BookOpen className={styles.green} />世界书</button>
+                        <button type="button" onClick={() => setView("api")}><Code2 className={styles.blue} />API</button>
+                        <button type="button" onClick={() => setView("books")}><BookOpen className={styles.green} />世界书</button>
                         <button type="button" title="开启原生聊天画中画小窗" onClick={() => { setView(null); window.dispatchEvent(new CustomEvent("open-mini-chat")); }}><MessageCircle className={styles.cyan} />小窗</button>
                         <button type="button" title="前往工坊" onClick={() => { setView(null); window.dispatchEvent(new CustomEvent("mascot-navigate", { detail: { app: "qa" } })); }}><Wrench className={styles.amber} />工坊</button>
                         <button type="button" aria-label={`前往${shortcut.label}`} onClick={navigate}><ArrowLeft />{shortcut.label}</button>
                     </div>
                     <button className={styles.shortcut} type="button" onClick={() => setView("shortcut")}>快捷入口 <span>更改 ›</span></button>
-                    {!target && <p className={styles.note}>进入生成内容的页面后，可调整该页面的 API 与世界书。</p>}
+                    {!target && <p className={styles.note}>当前未进入特定生成页面，调整将作用于全局默认配置。</p>}
                 </>}
                 {view === "shortcut" && <div className={styles.detail}><h3>快捷入口</h3><p>轻点第六格，前往所选页面。</p>{SHORTCUTS.map(item => <button type="button" className={styles.option} key={item.id} aria-pressed={shortcut.id === item.id} onClick={() => saveChatAppSettings({ ...loadChatAppSettings(), floatingToolsShortcut: item.id })}>{item.label}{shortcut.id === item.id && <Check size={17} />}</button>)}</div>}
-                {view === "api" && <div className={styles.detail}><h3>本页 API</h3><p>{scopeNote}</p><button type="button" className={styles.option} aria-pressed={!slot.apiConfigId} onClick={() => update({ apiConfigId: undefined })}><span>继承原配置<small>{apis.find(api => api.id === inheritedApi)?.name || "尚未配置"}</small></span>{!slot.apiConfigId && <Check size={17} />}</button>{apis.map(api => <button type="button" className={styles.option} key={api.id} aria-pressed={slot.apiConfigId === api.id} onClick={() => update({ apiConfigId: api.id })}><span>{api.name}<small>{api.defaultModel}</small></span>{slot.apiConfigId === api.id && <Check size={17} />}</button>)}{!apis.length && <p>请先在设置中添加 API。</p>}</div>}
-                {view === "books" && <div className={styles.detail}><h3>本页世界书</h3><p>{scopeNote}</p><button type="button" className={styles.option} aria-pressed={slot.worldBookMode !== "replace"} onClick={() => update({ worldBookIds: undefined, worldBookMode: undefined })}>恢复继承{slot.worldBookMode !== "replace" && <Check size={17} />}</button><p>{slot.worldBookMode === "replace" ? "本页单独选择；全不选即停用继承世界书。" : "目前沿用已有绑定及角色世界。勾选后改为本页单独选择。"}</p>{books.map(book => {
-                    const checked = resolved.worldBookIds?.includes(book.id) === true;
-                    return <button type="button" key={book.id} role="checkbox" aria-checked={checked} className={styles.option} onClick={() => {
-                        const ids = new Set(resolved.worldBookIds || []); if (checked) ids.delete(book.id); else ids.add(book.id);
-                        update({ worldBookIds: [...ids], worldBookMode: "replace" });
-                    }}>{book.name}{checked && <Check size={17} />}</button>;
-                })}{!books.length && <p>请先导入世界书。</p>}<p>选中的条目仍按启用状态与触发规则注入；任务额外指定的世界书不在此列表中控制。</p></div>}
+                {view === "api" && <div className={styles.detail}>
+                    <h3>{target ? "本页 API" : "全局默认 API"}</h3>
+                    <p>{scopeNote}</p>
+                    {target && <button type="button" className={styles.option} aria-pressed={!slot.apiConfigId} onClick={() => update({ apiConfigId: undefined })}><span>继承原配置<small>{apis.find(api => api.id === inheritedApi)?.name || "尚未配置"}</small></span>{!slot.apiConfigId && <Check size={17} />}</button>}
+                    {apis.map(api => {
+                        const isSelected = target ? slot.apiConfigId === api.id : resolved.apiConfigId === api.id;
+                        return <button type="button" className={styles.option} key={api.id} aria-pressed={isSelected} onClick={() => update({ apiConfigId: api.id })}><span>{api.name}<small>{api.defaultModel}</small></span>{isSelected && <Check size={17} />}</button>;
+                    })}
+                    {!apis.length && <p>请先在设置中添加 API。</p>}
+                </div>}
+                {view === "books" && <div className={styles.detail}>
+                    <h3>{target ? "本页世界书" : "全局默认世界书"}</h3>
+                    <p>{scopeNote}</p>
+                    {target ? <>
+                        <button type="button" className={styles.option} aria-pressed={slot.worldBookMode !== "replace"} onClick={() => update({ worldBookIds: undefined, worldBookMode: undefined })}>恢复继承{slot.worldBookMode !== "replace" && <Check size={17} />}</button>
+                        <p>{slot.worldBookMode === "replace" ? "本页单独选择；全不选即停用继承世界书。" : "目前沿用已有绑定及角色世界。勾选后改为本页单独选择。"}</p>
+                    </> : <p>勾选将在所有未单独指定世界书的页面与角色中默认注入。</p>}
+                    {books.map(book => {
+                        const currentIds = target ? (resolved.worldBookIds || []) : (slot.worldBookIds || []);
+                        const checked = currentIds.includes(book.id);
+                        return <button type="button" key={book.id} role="checkbox" aria-checked={checked} className={styles.option} onClick={() => {
+                            const ids = new Set(currentIds);
+                            if (checked) ids.delete(book.id); else ids.add(book.id);
+                            update(target ? { worldBookIds: [...ids], worldBookMode: "replace" } : { worldBookIds: [...ids] });
+                        }}>{book.name}{checked && <Check size={17} />}</button>;
+                    })}
+                    {!books.length && <p>请先导入世界书。</p>}
+                    <p>选中的条目仍按启用状态与触发规则注入；任务额外指定的世界书不在此列表中控制。</p>
+                </div>}
             </div>}
         </>}
     </div>;

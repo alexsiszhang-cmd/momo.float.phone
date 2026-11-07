@@ -338,6 +338,7 @@ export type BindingSlot = {
     userIdentityId?: string;
     worldBookIds?: string[];
     regexIds?: string[];
+    worldBookMode?: "replace" | "inherit";
 };
 
 // Character binding: character defaults + per-app overrides

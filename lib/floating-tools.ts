@@ -16,13 +16,17 @@ export function changeFloatingTool(settings: ChatAppSettings, key: FloatingToolK
 }
 
 export type FloatingBindingTarget = { appId: string; characterId?: string };
-export function getFloatingBindingSlot(config: BindingConfig, target: FloatingBindingTarget): BindingSlot {
+export function getFloatingBindingSlot(config: BindingConfig, target?: FloatingBindingTarget | null): BindingSlot {
+    if (!target) return config.globalDefaults || {};
     return target.characterId
         ? config.characterBindings.find(b => b.characterId === target.characterId)?.appOverrides[target.appId] || {}
         : config.appDefaults?.[target.appId] || {};
 }
 
-export function updateFloatingBinding(config: BindingConfig, target: FloatingBindingTarget, patch: Partial<BindingSlot>): BindingConfig {
+export function updateFloatingBinding(config: BindingConfig, target: FloatingBindingTarget | null | undefined, patch: Partial<BindingSlot>): BindingConfig {
+    if (!target) {
+        return { ...config, globalDefaults: { ...config.globalDefaults, ...patch } };
+    }
     const slot = { ...getFloatingBindingSlot(config, target), ...patch };
     if (!target.characterId) return { ...config, appDefaults: { ...config.appDefaults, [target.appId]: slot } };
     const existing = config.characterBindings.find(b => b.characterId === target.characterId);
