@@ -7,7 +7,7 @@ import remarkGfm from "remark-gfm";
 // （** 后跟标点时要求前面是空格/标点，中文里前面通常是汉字），中文消息大量中招。
 import remarkCjkFriendly from "remark-cjk-friendly";
 import remarkBreaks from "remark-breaks";
-import { AppWindow, ArrowUp, BrushCleaning, Check, ChevronLeft, ChevronRight, Copy, Drama, FileCode2, FileText, Gamepad2, Github, Image as ImageIcon, Loader2, Menu, MoreVertical, Paperclip, Pencil, Pin, PinOff, Play, Plus, Square, Trash2, Wrench, X } from "lucide-react";
+import { AppWindow, ArrowUp, BrushCleaning, Check, ChevronDown, ChevronLeft, ChevronRight, Copy, Drama, FileCode2, FileText, Gamepad2, Github, Image as ImageIcon, Loader2, Menu, MoreVertical, Paperclip, Pencil, Pin, PinOff, Play, Plus, Square, Trash2, Wrench, X } from "lucide-react";
 import { getQaApiLogs, clearQaApiLogs, type DebugInfo } from "@/lib/api-log-store";
 import { QaFileCard } from "@/components/qa-file-card";
 import { parseQaFileMarker } from "@/lib/qa-computer-tools";
@@ -831,6 +831,46 @@ function QaRepoSheet({ onClose, onSaved }: { onClose: () => void; onSaved: () =>
   );
 }
 
+function scrollToElementSafely(container: HTMLElement | null, targetEl: HTMLElement | null) {
+  if (!container || !targetEl) return;
+  try {
+    const header = document.querySelector(".qa-header");
+    const topOffset = header && (header as HTMLElement).offsetParent !== null
+      ? (header as HTMLElement).getBoundingClientRect().height + 14
+      : 88;
+    const cRect = container.getBoundingClientRect();
+    const tRect = targetEl.getBoundingClientRect();
+    const relativeTop = tRect.top - cRect.top;
+    const finalScrollTop = Math.max(0, container.scrollTop + relativeTop - topOffset);
+
+    container.scrollTo({
+      top: finalScrollTop,
+      behavior: "smooth",
+    });
+  } catch {
+    try { targetEl.scrollIntoView({ behavior: "smooth", block: "start" }); } catch {}
+  }
+}
+
+function pulseHighlight(el: HTMLElement | null) {
+  if (!el) return;
+  try {
+    el.classList.remove("xf-highlight-anchor");
+    void el.offsetWidth;
+    el.classList.add("xf-highlight-anchor");
+    setTimeout(() => {
+      try { el.classList.remove("xf-highlight-anchor"); } catch {}
+    }, 1500);
+  } catch {}
+}
+
+type QaRoundItem = {
+  roundNum: number;
+  title: string;
+  userMsgId?: string;
+  assistantMsgId?: string;
+};
+
 // ── App 本体 ─────────────────────────────────────────
 
 export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
@@ -925,9 +965,89 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
     [previewItem],
   );
 
+  const [capsuleVisible, setCapsuleVisible] = useState(false);
+  const [activeRoundNum, setActiveRoundNum] = useState(1);
+  const [outlineOpen, setOutlineOpen] = useState(false);
+
+  // 纯响应式轮次数据派生：根据 messages 实时生成大纲，AI 流式打字亦平滑自适应
+  const rounds = useMemo(() => {
+    const list: QaRoundItem[] = [];
+    let current: QaRoundItem | null = null;
+    for (const msg of messages) {
+      if (msg.role === "user") {
+        if (current) list.push(current);
+        const raw = (msg.content || "").replace(/\s+/g, " ").trim();
+        current = {
+          roundNum: list.length + 1,
+          title: raw || `第 ${list.length + 1} 轮提问`,
+          userMsgId: msg.id,
+        };
+      } else if (msg.role === "assistant") {
+        if (!current) {
+          current = {
+            roundNum: list.length + 1,
+            title: `第 ${list.length + 1} 轮对话`,
+            assistantMsgId: msg.id,
+          };
+        } else {
+          current.assistantMsgId = msg.id;
+        }
+      }
+    }
+    if (current) list.push(current);
+    return list;
+  }, [messages]);
+
+  // 自动滚动 & 胶囊可见性与当前视口轮次计算（带完整防御，绝不抛异常）
+  const handleScroll = useCallback(() => {
+    const el = bodyRef.current;
+    if (!el) return;
+    try {
+      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+      stickToBottomRef.current = atBottom;
+
+      if (rounds.length === 0) {
+        setCapsuleVisible(false);
+        return;
+      }
+      // 贴底阅读时自然隐去，往上翻阅历史消息时浮现
+      setCapsuleVisible(!atBottom);
+
+      if (atBottom) {
+        setActiveRoundNum(rounds.length);
+      } else {
+        const header = document.querySelector(".qa-header");
+        const topOffset = header && (header as HTMLElement).offsetParent !== null
+          ? (header as HTMLElement).getBoundingClientRect().height + 14
+          : 88;
+        const cRect = el.getBoundingClientRect();
+        const effectiveTop = cRect.top + topOffset;
+
+        let detected = rounds.length;
+        for (let i = 0; i < rounds.length; i++) {
+          const r = rounds[i];
+          const targetId = r.userMsgId || r.assistantMsgId;
+          if (targetId) {
+            const dom = document.getElementById(`qa-msg-${targetId}`);
+            if (dom) {
+              const b = dom.getBoundingClientRect();
+              if (b.bottom >= effectiveTop + 10) {
+                detected = r.roundNum;
+                break;
+              }
+            }
+          }
+        }
+        setActiveRoundNum(detected);
+      }
+    } catch {
+      // 保护性静默
+    }
+  }, [rounds]);
+
   useEffect(() => {
     const el = bodyRef.current;
-    if (el) {
+    if (el && stickToBottomRef.current) {
       el.scrollTop = el.scrollHeight;
     }
   }, [messages]);
@@ -945,6 +1065,7 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
       if (newId) {
         onNotice?.("已提取关键记忆并结转到新会话！Token 空间已恢复 100%");
         setDrawerOpen(false);
+        setOutlineOpen(false);
       } else {
         onNotice?.("所选会话暂无内容或结转失败。");
       }
@@ -953,38 +1074,47 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
     }
   }, [snapshot.activeSessionId, snapshot.isGenerating, snapshot.isCompacting, onNotice]);
 
-  // ── 工坊开放插件宿主接口与生命周期广播 ──
-  useEffect(() => {
-    const runtime = {
-      version: "2.0.0",
-      getContainer: () => bodyRef.current,
-      getActiveSessionId: () => snapshot.activeSessionId,
-      getMessages: () => messages,
-      scrollToBottom: (smooth = true) => {
-        const target = bodyRef.current;
-        if (!target) return;
-        stickToBottomRef.current = true;
-        if (smooth) target.scrollTo({ top: target.scrollHeight, behavior: "smooth" });
-        else target.scrollTop = target.scrollHeight;
-      },
-      carryOverSession: async (targetSessionId?: string) => {
-        return handleCarryOverSession(targetSessionId);
-      },
-    };
+  const handleDirectToLastReply = useCallback(() => {
+    setOutlineOpen(false);
+    const el = bodyRef.current;
+    if (!el) return;
 
-    (window as unknown as { __WORKSHOP_RUNTIME__?: typeof runtime }).__WORKSHOP_RUNTIME__ = runtime;
-    window.dispatchEvent(new CustomEvent("workshop:open", { detail: runtime }));
+    try {
+      const assistantMsgs = messages.filter((m) => m.role === "assistant");
+      const lastAssistant = assistantMsgs.length > 0 ? assistantMsgs[assistantMsgs.length - 1] : null;
 
-    return () => {
-      window.dispatchEvent(new CustomEvent("workshop:close"));
-      delete (window as unknown as { __WORKSHOP_RUNTIME__?: typeof runtime }).__WORKSHOP_RUNTIME__;
-    };
-  }, [snapshot.activeSessionId, handleCarryOverSession]);
-
-  // 消息内容变化时仅广播 update 事件，让大纲与胶囊平滑更新，绝不 teardown 宿主实例
-  useEffect(() => {
-    window.dispatchEvent(new CustomEvent("workshop:update"));
+      if (lastAssistant) {
+        const dom = document.getElementById(`qa-msg-${lastAssistant.id}`);
+        if (dom) {
+          scrollToElementSafely(el, dom);
+          pulseHighlight(dom);
+          return;
+        }
+      }
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    } catch {
+      try { el.scrollTo({ top: el.scrollHeight, behavior: "smooth" }); } catch {}
+    }
   }, [messages]);
+
+  const handleSelectRound = useCallback((round: QaRoundItem) => {
+    setOutlineOpen(false);
+    const el = bodyRef.current;
+    if (!el) return;
+
+    try {
+      const targetId = round.userMsgId || round.assistantMsgId;
+      if (targetId) {
+        const dom = document.getElementById(`qa-msg-${targetId}`);
+        if (dom) {
+          scrollToElementSafely(el, dom);
+          pulseHighlight(dom);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const autoGrow = useCallback(() => {
     const el = textareaRef.current;
@@ -1384,7 +1514,83 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
           </div>
         </div>
 
+        {/* ── 吸附微光淡紫胶囊 ── */}
+        {rounds.length > 0 && (
+          <div className={`xf-qa-capsule ${capsuleVisible ? "is-visible" : ""}`}>
+            <button
+              type="button"
+              className="xf-qa-round-btn"
+              title="查看对话大纲"
+              onClick={() => setOutlineOpen((v) => !v)}
+            >
+              <span className="xf-qa-round-icon-badge">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
+                  <line x1="8" y1="6" x2="21" y2="6" />
+                  <line x1="8" y1="12" x2="21" y2="12" />
+                  <line x1="8" y1="18" x2="21" y2="18" />
+                  <line x1="3" y1="6" x2="3.01" y2="6" />
+                  <line x1="3" y1="12" x2="3.01" y2="12" />
+                  <line x1="3" y1="18" x2="3.01" y2="18" />
+                </svg>
+              </span>
+              <span className="xf-qa-round-label">{`${activeRoundNum}/${rounds.length} 轮`}</span>
+            </button>
+            <div className="xf-qa-capsule-divider" />
+            <button
+              type="button"
+              className="xf-qa-direct-btn"
+              title="定位最后一次回复"
+              onClick={handleDirectToLastReply}
+            >
+              <ChevronDown size={12} strokeWidth={2.6} />
+            </button>
+          </div>
+        )}
       </footer>
+
+      {/* ── 大纲气泡弹窗（挂载在 qa-stage，z-index 50，避开顶栏遮挡） ── */}
+      {outlineOpen && (
+        <>
+          <div
+            className="xf-qa-outline-backdrop"
+            onClick={() => setOutlineOpen(false)}
+            aria-hidden
+          />
+          <div className="xf-qa-outline-modal is-open" role="dialog" aria-label="工坊对话大纲">
+            <div className="xf-qa-outline-header">
+              <span>工坊对话大纲</span>
+              <button
+                type="button"
+                className={`xf-qa-outline-carryover-btn ${carryingSessionId || snapshot.isCompacting ? "is-loading" : ""}`}
+                title="将当前记忆结转至新窗口，重置 Token 空间"
+                disabled={Boolean(carryingSessionId || snapshot.isCompacting)}
+                onClick={() => handleCarryOverSession()}
+              >
+                {(carryingSessionId || snapshot.isCompacting) && <div className="xf-qa-carry-progress" />}
+                <span style={{ position: "relative", zIndex: 1 }}>
+                  {carryingSessionId || snapshot.isCompacting ? "⚡ 正在结转中..." : "⚡ 结转新会话"}
+                </span>
+              </button>
+            </div>
+            <div className="xf-qa-outline-list hide-scrollbar">
+              {rounds.map((r) => {
+                const isActive = r.roundNum === activeRoundNum;
+                return (
+                  <button
+                    key={r.roundNum}
+                    type="button"
+                    className={`xf-qa-outline-item ${isActive ? "is-active" : ""}`}
+                    onClick={() => handleSelectRound(r)}
+                  >
+                    <span className="xf-qa-outline-num">{r.roundNum}</span>
+                    <span className="xf-qa-outline-text">{r.title}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
 
       {drawerOpen && (
         <button
