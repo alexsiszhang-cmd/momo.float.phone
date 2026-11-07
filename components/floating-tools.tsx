@@ -217,7 +217,6 @@ export function FloatingTools({ activeApp, chatSession }: { activeApp: string | 
         wake();
     }
 
-    if (!enabled) return null;
     const config = view ? loadBindingConfig() : null;
     const slot = config ? getFloatingBindingSlot(config, target) : {};
     const resolved = config ? resolveBinding(config, target?.characterId, target?.appId) : {};
@@ -239,8 +238,8 @@ export function FloatingTools({ activeApp, chatSession }: { activeApp: string | 
     const activeImageId = (target ? (slot.imageConfigId || inheritedImage) : (slot.imageConfigId || resolved.imageConfigId))
         || getActiveImageGenerationBindingId(effectiveImageSettings) || "";
     const activeImageSettings = useMemo(() => applyImageGenerationBinding(effectiveImageSettings, activeImageId), [effectiveImageSettings, activeImageId]);
-    const activeNaiPreset = activeImageSettings.novelai?.presets.find(p => p.id === activeImageSettings.novelai?.activePresetId);
-    const activeImageModel = activeImageSettings.provider === "novelai" ? (activeNaiPreset?.model || "") : activeImageSettings.model;
+    const activeNaiPreset = activeImageSettings.novelai?.presets?.find(p => p.id === activeImageSettings.novelai?.activePresetId);
+    const activeImageModel = activeImageSettings.provider === "novelai" ? (activeNaiPreset?.model || "") : (activeImageSettings.model || "");
     const availableImageModels = activeImageId ? (imageModels[activeImageId] || []) : [];
     const hasImageSelection = imageOptions.some(opt => opt.id === activeImageId);
 
@@ -382,6 +381,9 @@ export function FloatingTools({ activeApp, chatSession }: { activeApp: string | 
         : target
             ? "调整本应用默认配置；角色的应用专属配置仍优先。"
             : "调整全局默认配置；未单独配置的应用与角色将沿用此设置。";
+
+    if (!enabled) return null;
+
     return <div ref={layerRef} className={styles.layer} data-floating-tools="">
         <button ref={buttonRef} className={styles.assist} type="button" aria-label="打开悬浮工具" aria-expanded={!!view} aria-controls="combined-floating-panel"
             data-edge={edge}
