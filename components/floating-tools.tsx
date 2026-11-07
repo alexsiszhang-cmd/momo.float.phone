@@ -1,12 +1,35 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent } from "react";
-import { ArrowLeft, BookOpen, Check, Code2, FileText, MessageCircle, Wrench, X } from "lucide-react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent } from "react";
+import { ArrowLeft, BookOpen, Check, Code2, FileText, FlaskConical, ImageIcon, Loader2, MessageCircle, RefreshCw, Wrench, X } from "lucide-react";
 import { CHAT_APP_SETTINGS_UPDATED_EVENT, loadChatAppSettings, saveChatAppSettings, type ChatAppSettings, type ChatSession } from "@/lib/chat-storage";
 import { getFloatingBindingSlot, isCombinedToolsEnabled, updateFloatingBinding, type FloatingBindingTarget } from "@/lib/floating-tools";
 import { getFloatingPageContext, subscribeFloatingPageContext } from "@/lib/floating-tools-context";
-import { loadApiConfigs, loadBindingConfig, loadWorldBooks, resolveBinding, saveBindingConfig } from "@/lib/settings-storage";
-import { CONTENT_APP_LABELS, type BindingSlot, type ContentAppId } from "@/lib/settings-types";
+import {
+    loadApiConfigs,
+    loadBindingConfig,
+    loadWorldBooks,
+    resolveBinding,
+    saveBindingConfig,
+    saveApiConfigs,
+    loadImageGenerationSettings,
+    saveImageGenerationSettings,
+} from "@/lib/settings-storage";
+import { CONTENT_APP_LABELS, type ApiConfig, type BindingSlot, type ContentAppId, type ImageGenerationSettings } from "@/lib/settings-types";
+import {
+    applyImageGenerationBinding,
+    getActiveImageGenerationBindingId,
+    getImageGenerationBindingOptions,
+} from "@/lib/image-generation-binding";
+import {
+    fetchImageGenerationModels,
+    fetchNovelAiModels,
+    filterLikelyImageModels,
+    generateImageFromConfiguredApi,
+} from "@/lib/image-generation-service";
+import { NOVELAI_COMMON_MODELS } from "@/lib/novelai-image-config";
+import { determineBaseUrl, simpleLLMCall } from "@/lib/api-helpers";
+import { generateEmbedding, isEmbeddingModelName } from "@/lib/memory-embedding";
 import { DebugPromptPanel } from "./debug-prompt-panel";
 import styles from "./floating-tools.module.css";
 
@@ -32,6 +55,17 @@ export function FloatingTools({ activeApp, chatSession }: { activeApp: string | 
     const [idle, setIdle] = useState(false);
     const [edge, setEdge] = useState<"left" | "right">("right");
     const [revision, setRevision] = useState(0);
+    const [apiTab, setApiTab] = useState<"text" | "image">("text");
+    const [apis, setApis] = useState<ApiConfig[]>([]);
+    const [imageSettings, setImageSettings] = useState<ImageGenerationSettings>(loadImageGenerationSettings);
+    const [fetchedModels, setFetchedModels] = useState<Record<string, string[]>>({});
+    const [modelBusy, setModelBusy] = useState<null | "fetch" | "test">(null);
+    const [modelStatus, setModelStatus] = useState<{ success: boolean; message: string } | null>(null);
+    const [imageModels, setImageModels] = useState<Record<string, string[]>>({});
+    const [imageBusy, setImageBusy] = useState<null | "fetch" | "test">(null);
+    const [imageStatus, setImageStatus] = useState<{ success: boolean; message: string } | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const imageBusyRef = useRef(false);
     const layerRef = useRef<HTMLDivElement>(null);
     const buttonRef = useRef<HTMLButtonElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
@@ -67,11 +101,24 @@ export function FloatingTools({ activeApp, chatSession }: { activeApp: string | 
     }, [activeApp, targetKey]);
     useEffect(() => {
         if (!enabled) return;
-        const reload = () => setRevision(n => n + 1);
+        const reload = () => {
+            setApis(loadApiConfigs());
+            setImageSettings(loadImageGenerationSettings());
+            setRevision(n => n + 1);
+        };
+        reload();
         window.addEventListener("settings-bindings-updated", reload);
+        window.addEventListener("settings-image-generation-updated", reload);
         window.addEventListener("focus", reload);
-        return () => { window.removeEventListener("settings-bindings-updated", reload); window.removeEventListener("focus", reload); };
+        return () => {
+            window.removeEventListener("settings-bindings-updated", reload);
+            window.removeEventListener("settings-image-generation-updated", reload);
+            window.removeEventListener("focus", reload);
+        };
     }, [enabled]);
+    useEffect(() => () => {
+        if (imagePreview) URL.revokeObjectURL(imagePreview);
+    }, [imagePreview]);
 
     const place = useCallback((next: Position, snap = false) => {
         const layer = layerRef.current;
@@ -177,8 +224,150 @@ export function FloatingTools({ activeApp, chatSession }: { activeApp: string | 
     const inheritedApi = view === "api" && config && target
         ? resolveBinding(updateFloatingBinding(config, target, { apiConfigId: undefined }), target.characterId, target.appId).apiConfigId
         : undefined;
-    const apis = view === "api" ? loadApiConfigs() : [];
+    const inheritedImage = view === "api" && config && target
+        ? resolveBinding(updateFloatingBinding(config, target, { imageConfigId: undefined }), target.characterId, target.appId).imageConfigId
+        : undefined;
+    const effectiveApis = apis.length ? apis : (view === "api" ? loadApiConfigs() : []);
+    const effectiveImageSettings = imageSettings || loadImageGenerationSettings();
     const books = view === "books" ? loadWorldBooks() : [];
+
+    const activeApiId = target ? (slot.apiConfigId || inheritedApi) : (slot.apiConfigId || resolved.apiConfigId);
+    const activeApi = effectiveApis.find(api => api.id === activeApiId) || null;
+    const activeFetchedModels = activeApi ? (fetchedModels[activeApi.id] || []) : [];
+
+    const imageOptions = useMemo(() => getImageGenerationBindingOptions(effectiveImageSettings), [effectiveImageSettings]);
+    const activeImageId = (target ? (slot.imageConfigId || inheritedImage) : (slot.imageConfigId || resolved.imageConfigId))
+        || getActiveImageGenerationBindingId(effectiveImageSettings) || "";
+    const activeImageSettings = useMemo(() => applyImageGenerationBinding(effectiveImageSettings, activeImageId), [effectiveImageSettings, activeImageId]);
+    const activeNaiPreset = activeImageSettings.novelai?.presets.find(p => p.id === activeImageSettings.novelai?.activePresetId);
+    const activeImageModel = activeImageSettings.provider === "novelai" ? (activeNaiPreset?.model || "") : activeImageSettings.model;
+    const availableImageModels = activeImageId ? (imageModels[activeImageId] || []) : [];
+    const hasImageSelection = imageOptions.some(opt => opt.id === activeImageId);
+
+    const updateApiModel = useCallback((model: string) => {
+        if (!activeApi || !model) return;
+        const next = effectiveApis.map(api => api.id === activeApi.id ? { ...api, defaultModel: model } : api);
+        setApis(next);
+        saveApiConfigs(next);
+        setModelStatus({ success: true, message: `已选择模型：${model}` });
+    }, [activeApi, effectiveApis]);
+
+    const fetchApiModels = useCallback(async () => {
+        if (!activeApi || modelBusy) return;
+        setModelBusy("fetch");
+        setModelStatus(null);
+        try {
+            const baseUrl = determineBaseUrl(activeApi);
+            if (!baseUrl) throw new Error("缺少 Base URL");
+            if (!activeApi.apiKey) throw new Error("缺少 API Key");
+            const isGoogleNative = activeApi.provider === "Google";
+            const modelsBase = baseUrl.replace(/\/$/, "").replace(/\/(chat\/completions|completions|embeddings|messages)$/i, "");
+            const modelsUrl = /\/models$/i.test(modelsBase) ? modelsBase : `${modelsBase}/models`;
+            const url = isGoogleNative ? `${modelsUrl}?key=${encodeURIComponent(activeApi.apiKey)}` : modelsUrl;
+            const headers: Record<string, string> = { "Content-Type": "application/json" };
+            if (!isGoogleNative) headers.Authorization = `Bearer ${activeApi.apiKey}`;
+            const response = await fetch(url, { method: "GET", headers });
+            if (!response.ok) {
+                const payload = await response.json().catch(() => ({}));
+                throw new Error(payload?.error?.message || `HTTP ${response.status}`);
+            }
+            const payload = await response.json();
+            const models = isGoogleNative && Array.isArray(payload?.models)
+                ? payload.models.map((item: { name?: string }) => String(item.name || "").replace(/^models\//, "")).filter(Boolean)
+                : Array.isArray(payload?.data)
+                    ? payload.data.map((item: { id?: string }) => String(item.id || "")).filter(Boolean)
+                    : [];
+            if (models.length === 0) throw new Error("接口没有返回可用模型");
+            setFetchedModels(prev => ({ ...prev, [activeApi.id]: models }));
+            setModelStatus({ success: true, message: `已拉取 ${models.length} 个模型` });
+        } catch (error) {
+            setModelStatus({ success: false, message: `拉取失败：${error instanceof Error ? error.message : String(error)}` });
+        } finally {
+            setModelBusy(null);
+        }
+    }, [activeApi, modelBusy]);
+
+    const testActiveApi = useCallback(async () => {
+        if (!activeApi || modelBusy) return;
+        if (!activeApi.defaultModel) {
+            setModelStatus({ success: false, message: "请先拉取并选择模型" });
+            return;
+        }
+        setModelBusy("test");
+        setModelStatus(null);
+        try {
+            if (isEmbeddingModelName(activeApi.defaultModel)) {
+                const embedding = await generateEmbedding("你好", activeApi, { throwOnError: true });
+                if (!embedding) throw new Error("接口未返回向量数据");
+                setModelStatus({ success: true, message: `测试成功，向量维度 ${embedding.length}` });
+            } else {
+                const result = await simpleLLMCall(
+                    activeApi,
+                    [{ role: "user", content: "你好，请只回复：连接成功" }],
+                    { temperature: 0.2, max_tokens: 4096 },
+                );
+                if (result.error || !result.content) throw new Error(result.error || "模型返回为空");
+                const reply = result.content.replace(/\s+/g, " ").trim();
+                setModelStatus({ success: true, message: `测试成功：${reply.slice(0, 60)}${reply.length > 60 ? "…" : ""}` });
+            }
+        } catch (error) {
+            setModelStatus({ success: false, message: `测试失败：${error instanceof Error ? error.message : String(error)}` });
+        } finally {
+            setModelBusy(null);
+        }
+    }, [activeApi, modelBusy]);
+
+    const updateImageModel = useCallback((model: string) => {
+        if (!hasImageSelection) return;
+        const latest = loadImageGenerationSettings();
+        const bound = applyImageGenerationBinding(latest, activeImageId);
+        const next = bound.provider === "novelai" && latest.novelai
+            ? { ...latest, novelai: { ...latest.novelai, presets: latest.novelai.presets.map(p => `novelai:${p.id}` === activeImageId ? { ...p, model } : p) } }
+            : { ...latest, openaiPresets: latest.openaiPresets?.map(p => `openai:${p.id}` === activeImageId ? { ...p, model } : p) };
+        saveImageGenerationSettings(next);
+        setImageSettings(loadImageGenerationSettings());
+        setImageStatus(null);
+    }, [activeImageId, hasImageSelection]);
+
+    const runImageAction = useCallback(async (action: "fetch" | "test") => {
+        if (!hasImageSelection || imageBusyRef.current) return;
+        imageBusyRef.current = true;
+        setImageBusy(action);
+        setImageStatus(null);
+        try {
+            if (action === "fetch") {
+                const nai = activeImageSettings.novelai;
+                const models = activeImageSettings.provider === "novelai"
+                    ? nai?.customUrlEnabled ? [...NOVELAI_COMMON_MODELS] : await fetchNovelAiModels(nai?.apiKey || "")
+                    : filterLikelyImageModels(await fetchImageGenerationModels(activeImageSettings));
+                setImageModels(prev => ({ ...prev, [activeImageId]: models }));
+                setImageStatus({
+                    success: true,
+                    message: activeImageSettings.provider === "novelai"
+                        ? `已加载 ${models.length} 个常用模型`
+                        : `已拉取 ${models.length} 个模型`
+                });
+            } else {
+                const result = await generateImageFromConfiguredApi({
+                    description: activeImageSettings.provider === "novelai"
+                        ? "white coffee cup on a wooden table, soft window light"
+                        : "一张放在木桌上的白色咖啡杯，柔和自然光，真实照片风格",
+                    settings: { ...activeImageSettings, enabled: true },
+                    useReferenceImage: false, includeUserReferenceImage: false,
+                });
+                if (!result) throw new Error("生图配置未启用或不完整");
+                if (imagePreview) URL.revokeObjectURL(imagePreview);
+                setImagePreview(URL.createObjectURL(result.blob));
+                setImageStatus({ success: true, message: "测试生图成功" });
+            }
+        } catch (error) {
+            setImageStatus({ success: false, message: `${action === "fetch" ? "拉取" : "测试"}失败：${error instanceof Error ? error.message : String(error)}` });
+        } finally {
+            imageBusyRef.current = false;
+            setImageBusy(null);
+        }
+    }, [activeImageId, activeImageSettings, hasImageSelection, imagePreview]);
+
     function update(patch: Partial<BindingSlot>) {
         saveBindingConfig(updateFloatingBinding(loadBindingConfig(), target, patch));
     }
@@ -230,12 +419,102 @@ export function FloatingTools({ activeApp, chatSession }: { activeApp: string | 
                 {view === "api" && <div className={styles.detail}>
                     <h3>{target ? "本页 API" : "全局默认 API"}</h3>
                     <p>{scopeNote}</p>
-                    {target && <button type="button" className={styles.option} aria-pressed={!slot.apiConfigId} onClick={() => update({ apiConfigId: undefined })}><span>继承原配置<small>{apis.find(api => api.id === inheritedApi)?.name || "尚未配置"}</small></span>{!slot.apiConfigId && <Check size={17} />}</button>}
-                    {apis.map(api => {
-                        const isSelected = target ? slot.apiConfigId === api.id : resolved.apiConfigId === api.id;
-                        return <button type="button" className={styles.option} key={api.id} aria-pressed={isSelected} onClick={() => update({ apiConfigId: api.id })}><span>{api.name}<small>{api.defaultModel}</small></span>{isSelected && <Check size={17} />}</button>;
-                    })}
-                    {!apis.length && <p>请先在设置中添加 API。</p>}
+                    <div className={styles.subTabs} role="tablist">
+                        <button type="button" aria-pressed={apiTab === "text"} onClick={() => { setApiTab("text"); setModelStatus(null); }}>
+                            <Code2 size={13} />文字 API
+                        </button>
+                        <button type="button" aria-pressed={apiTab === "image"} onClick={() => { setApiTab("image"); setImageStatus(null); }}>
+                            <ImageIcon size={13} />生图 API
+                        </button>
+                    </div>
+
+                    {apiTab === "text" && <>
+                        {target && <button type="button" className={styles.option} aria-pressed={!slot.apiConfigId} onClick={() => update({ apiConfigId: undefined })}><span>继承原配置<small>{effectiveApis.find(api => api.id === inheritedApi)?.name || "尚未配置"}</small></span>{!slot.apiConfigId && <Check size={17} />}</button>}
+                        {effectiveApis.map(api => {
+                            const isSelected = target ? slot.apiConfigId === api.id : (slot.apiConfigId || resolved.apiConfigId) === api.id;
+                            return <button type="button" className={styles.option} key={api.id} aria-pressed={isSelected} onClick={() => update({ apiConfigId: api.id })}>
+                                <span>{api.name}<small>{api.defaultModel}</small></span>
+                                {isSelected && <Check size={17} />}
+                            </button>;
+                        })}
+                        {!effectiveApis.length && <p>请先在设置中添加 API。</p>}
+
+                        {activeApi && <div className={styles.modelBox}>
+                            <div className={styles.modelSelectRow}>
+                                <span>模型</span>
+                                <select value={activeApi.defaultModel || ""} disabled={modelBusy !== null} onChange={e => updateApiModel(e.target.value)}>
+                                    {!activeApi.defaultModel && <option value="">请选择模型</option>}
+                                    {activeApi.defaultModel && !activeFetchedModels.includes(activeApi.defaultModel) && (
+                                        <option value={activeApi.defaultModel}>{activeApi.defaultModel}</option>
+                                    )}
+                                    {activeFetchedModels.map(model => <option key={model} value={model}>{model}</option>)}
+                                </select>
+                            </div>
+                            <div className={styles.btnRow}>
+                                <button type="button" disabled={modelBusy !== null} onClick={() => void fetchApiModels()}>
+                                    {modelBusy === "fetch" ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+                                    <span>{modelBusy === "fetch" ? "拉取中" : "拉取模型"}</span>
+                                </button>
+                                <button type="button" disabled={modelBusy !== null} onClick={() => void testActiveApi()}>
+                                    {modelBusy === "test" ? <Loader2 size={13} className="animate-spin" /> : <FlaskConical size={13} />}
+                                    <span>{modelBusy === "test" ? "测试中" : "测试模型"}</span>
+                                </button>
+                            </div>
+                            {modelStatus && (
+                                <p className={`${styles.statusText} ${modelStatus.success ? styles.statusSuccess : styles.statusError}`}>
+                                    {modelStatus.message}
+                                </p>
+                            )}
+                        </div>}
+                    </>}
+
+                    {apiTab === "image" && <>
+                        {target && <button type="button" className={styles.option} aria-pressed={!slot.imageConfigId} onClick={() => update({ imageConfigId: undefined })}>
+                            <span>继承原配置<small>{imageOptions.find(opt => opt.id === inheritedImage)?.name || "跟随生图设置"}</small></span>
+                            {!slot.imageConfigId && <Check size={17} />}
+                        </button>}
+                        {imageOptions.map(opt => {
+                            const isSelected = target ? slot.imageConfigId === opt.id : (slot.imageConfigId || resolved.imageConfigId) === opt.id;
+                            return <button type="button" className={styles.option} key={opt.id} aria-pressed={isSelected} onClick={() => update({ imageConfigId: opt.id })}>
+                                <span>{opt.name}</span>
+                                {isSelected && <Check size={17} />}
+                            </button>;
+                        })}
+                        {!imageOptions.length && <p>请先在设置中添加生图方案。</p>}
+
+                        {hasImageSelection && <div className={styles.modelBox}>
+                            <div className={styles.modelSelectRow}>
+                                <span>模型</span>
+                                <select value={activeImageModel || ""} disabled={imageBusy !== null} onChange={e => updateImageModel(e.target.value)}>
+                                    {!activeImageModel && <option value="">请选择模型</option>}
+                                    {activeImageModel && !availableImageModels.includes(activeImageModel) && (
+                                        <option value={activeImageModel}>{activeImageModel}</option>
+                                    )}
+                                    {availableImageModels.map(model => <option key={model} value={model}>{model}</option>)}
+                                </select>
+                            </div>
+                            <div className={styles.btnRow}>
+                                <button type="button" disabled={imageBusy !== null} onClick={() => void runImageAction("fetch")}>
+                                    {imageBusy === "fetch" ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+                                    <span>{imageBusy === "fetch" ? "拉取中" : "拉取模型"}</span>
+                                </button>
+                                <button type="button" disabled={imageBusy !== null} onClick={() => void runImageAction("test")}>
+                                    {imageBusy === "test" ? <Loader2 size={13} className="animate-spin" /> : <FlaskConical size={13} />}
+                                    <span>{imageBusy === "test" ? "测试中" : "测试生图"}</span>
+                                </button>
+                            </div>
+                            {imageStatus && (
+                                <p className={`${styles.statusText} ${imageStatus.success ? styles.statusSuccess : styles.statusError}`}>
+                                    {imageStatus.message}
+                                </p>
+                            )}
+                            {imagePreview && (
+                                <div className={styles.previewBox}>
+                                    <img src={imagePreview} alt="测试生图预览" />
+                                </div>
+                            )}
+                        </div>}
+                    </>}
                 </div>}
                 {view === "books" && <div className={styles.detail}>
                     <h3>{target ? "本页世界书" : "全局默认世界书"}</h3>
