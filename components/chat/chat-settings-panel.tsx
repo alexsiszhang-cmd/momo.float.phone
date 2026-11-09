@@ -43,8 +43,6 @@ import { triggerDeleteFriendReaction } from "@/lib/friend-request-engine";
 import { loadCharacters, saveCharacters } from "@/lib/character-storage";
 import { isAgentComputerConfigured } from "@/lib/agent-computer";
 import { CharacterComputerPage } from "./character-computer-page";
-import { BeautyPresetPicker } from "./beauty-preset-picker";
-import { resolveChatBeautyPreset, type ChatBeautyPreset } from "@/lib/chat-beauty-preset";
 import { resolveUserIdentity, loadApiConfigs, loadBindingConfig, loadPresets, resolveBinding } from "@/lib/settings-storage";
 import { resolveChatAccountUserIdentity } from "@/lib/chat-scope-storage";
 import { removeChatAltAccountFriend } from "@/lib/chat-alt-account-storage";
@@ -433,8 +431,6 @@ export function ChatSettingsPanel({
         setPreviewHtml("");
         setShowStatusRegionDialog(true);
     };
-    const [chatUiStyle, setChatUiStyle] = useState<"classic" | "imessage">(session.chatUiStyle || "classic");
-    const [beautyPreset, setBeautyPreset] = useState<ChatBeautyPreset>(() => resolveChatBeautyPreset(session));
     const [visionImagePromptLimit, setVisionImagePromptLimit] = useState(() => resolveVisionImagePromptLimit(session));
     const [visionLimitUsesGlobal, setVisionLimitUsesGlobal] = useState(session.visionImagePromptLimitUsesGlobal !== false);
     const [bilingualTranslationEnabled, setBilingualTranslationEnabled] = useState(session.bilingualTranslationEnabled !== false);
@@ -1537,39 +1533,6 @@ export function ChatSettingsPanel({
 
                 {/* Backgrounds & UI */}
                 <div className="menu-group">
-                    <div className="menu-item">
-                        <ChatInfoIcon icon={Sparkles} color={CONTENT_APP_ACCENTS.chat} />
-                        <div className="menu-label-group">
-                            <span className="menu-label">界面风格</span>
-                            <span className="menu-desc">经典布局或 iMessage 拟态风格（可随时切换）</span>
-                        </div>
-                        <div className="menu-right">
-                            <button
-                                type="button"
-                                className="ui-btn ui-btn-ghost h-8 px-3 text-xs"
-                                onClick={() => {
-                                    const next = chatUiStyle === "imessage" ? "classic" : "imessage";
-                                    setChatUiStyle(next);
-                                    updateSession({ chatUiStyle: next });
-                                }}
-                            >
-                                {chatUiStyle === "imessage" ? "iMessage" : "经典模式"}
-                            </button>
-                        </div>
-                    </div>
-                    <div className="menu-item">
-                        <ChatInfoIcon icon={Sparkles} color={CONTENT_APP_ACCENTS.chat} />
-                        <div className="menu-label-group">
-                            <span className="menu-label">美化预设</span>
-                            <span className="menu-desc">普通实色或 Liquid Glass 拟态玻璃质感</span>
-                        </div>
-                        <div className="menu-right">
-                            <BeautyPresetPicker value={beautyPreset} onChange={preset => {
-                                setBeautyPreset(preset);
-                                updateSession({ beautyPreset: preset, glassBubblesEnabled: preset === "glass" });
-                            }} />
-                        </div>
-                    </div>
                     <label className="menu-item">
                         <ChatInfoIcon icon={ImageIcon} color={BINDING_ACCENTS.api} />
                         <div className="menu-label-group"><span className="menu-label">聊天背景</span></div>

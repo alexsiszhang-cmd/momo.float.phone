@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useSyncExternalStore } from "react";
 import { ChevronLeft } from "lucide-react";
-import { CHAT_MESSAGE_PUSHED_EVENT, loadChatSessions, loadChatContacts, ChatSession, createOrGetSession, createGroupSession, pushChatMessage, addChatContact, loadChatMessages, getLastVisibleSessionMessage, getChatMessagePreview, resolveChatCharacterAvatar } from "@/lib/chat-storage";
+import { CHAT_MESSAGE_PUSHED_EVENT, CHAT_APP_SETTINGS_UPDATED_EVENT, loadChatAppSettings, loadChatSessions, loadChatContacts, ChatSession, createOrGetSession, createGroupSession, pushChatMessage, addChatContact, loadChatMessages, getLastVisibleSessionMessage, getChatMessagePreview, resolveChatCharacterAvatar } from "@/lib/chat-storage";
 import { loadCharacters } from "@/lib/character-storage";
 import { Character } from "@/lib/character-types";
 import { resolveUserIdentity, USER_IDENTITIES_UPDATED_EVENT } from "@/lib/settings-storage";
@@ -98,6 +98,16 @@ type ChatMessageListProps = {
 
 export function ChatMessageList({ onCloseApp, activeSession, onSelectSession, onSelectMascot }: ChatMessageListProps) {
     const [sessions, setSessions] = useState<ChatSession[]>([]);
+    const [chatAppSettingsRev, setChatAppSettingsRev] = useState(0);
+    useEffect(() => {
+        const onSettings = () => setChatAppSettingsRev(v => v + 1);
+        window.addEventListener(CHAT_APP_SETTINGS_UPDATED_EVENT, onSettings);
+        return () => window.removeEventListener(CHAT_APP_SETTINGS_UPDATED_EVENT, onSettings);
+    }, []);
+    const isIMessage = React.useMemo(
+        () => loadChatAppSettings().globalChatUiStyle === "imessage",
+        [chatAppSettingsRev]
+    );
     const [listFilter, setListFilter] = useState("");
     const [listTab, setListTab] = useState<"all" | "private" | "group">("all");
     const [showPlusMenu, setShowPlusMenu] = useState(false);
@@ -208,7 +218,7 @@ export function ChatMessageList({ onCloseApp, activeSession, onSelectSession, on
     };
 
     return (
-        <div className="relative flex-1 h-full">
+        <div className={`relative flex-1 h-full ${isIMessage ? "imessage-list-page" : ""}`}>
             <PageShell
                 leftAction={
                     <div className="flex items-center min-w-max">
@@ -341,7 +351,7 @@ export function ChatMessageList({ onCloseApp, activeSession, onSelectSession, on
                             })
                             .map(s => (
                                 <div key={s.id}>
-                                    <SessionItem session={s} onSelect={() => onSelectSession(s)} isPinned={!!s.isPinned} />
+                                    <SessionItem session={s} onSelect={() => onSelectSession(s)} isPinned={!!s.isPinned} isIMessage={isIMessage} />
                                 </div>
                             ));
                             if (!showMascot && regularItems.length === 0) {
@@ -789,7 +799,7 @@ function ContactPicker({ onClose, onSelect }: { onClose: () => void; onSelect: (
     );
 }
 
-function SessionItem({ session, onSelect, isPinned }: { session: ChatSession, onSelect: () => void, isPinned?: boolean }) {
+function SessionItem({ session, onSelect, isPinned, isIMessage }: { session: ChatSession, onSelect: () => void, isPinned?: boolean, isIMessage?: boolean }) {
     const chars = loadCharacters();
     const character = chars.find(c => c.id === session.contactId);
     const lastVisibleMessage = getLastVisibleSessionMessage(session.id);
@@ -819,6 +829,9 @@ function SessionItem({ session, onSelect, isPinned }: { session: ChatSession, on
             className={`minimal-list-item${isPinned ? ' chat-pinned' : ''}`}
             onClick={onSelect}
         >
+            {isIMessage && session.unreadCount > 0 && (
+                <span className="imessage-unread-dot" aria-hidden="true" />
+            )}
             {isGroup ? (
                 <div className="minimal-avatar-wrapper grid grid-cols-2 grid-rows-2 gap-[1px] p-[2px] bg-[var(--c-card-border)] rounded-full overflow-hidden">
                     {groupAvatarItems.map((c) => (
@@ -857,7 +870,7 @@ function SessionItem({ session, onSelect, isPinned }: { session: ChatSession, on
                     <span className="ts-13 text-[var(--c-text)] opacity-80 truncate font-normal">
                         {preview || getLastNonEmptyPreview(session.id)}
                     </span>
-                    {session.unreadCount > 0 && (
+                    {!isIMessage && session.unreadCount > 0 && (
                         <span
                             className="min-w-[18px] h-[18px] px-1 rounded-full bg-[#ff3b30] text-white text-[10px] leading-[18px] text-center font-semibold shrink-0"
                             aria-label={`${session.unreadCount} 条未读消息`}

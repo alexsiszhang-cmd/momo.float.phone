@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { BellRing, ChevronRight, Code, Image as ImageIcon, LayoutPanelTop, Play, RotateCcw, User, X } from "lucide-react";
+import { BellRing, ChevronRight, Code, Image as ImageIcon, LayoutPanelTop, Play, RotateCcw, Sparkles, User, X } from "lucide-react";
+import { kvSet } from "@/lib/kv-db";
+import { BeautyPresetPicker } from "./beauty-preset-picker";
 import { PageShell } from "@/components/ui/page-shell";
 import CSSSchemeBar from "@/components/ui/css-scheme-picker";
 import { Toggle } from "@/components/ui/form";
@@ -135,6 +137,39 @@ export function GlobalChatInfoSettings({ onBack }: { onBack: () => void }) {
     const [status, setStatus] = useState<StatusRegionConfig>(() => getStatusRegionConfig(GLOBAL_CHAT_STATUS_REGION_ID, false));
     const [meetingInvite, setMeetingInvite] = useState<MeetingInviteCardConfig>(() => resolveMeetingInviteCardConfig(initial));
     const [storyAsOfflineMode, setStoryAsOfflineMode] = useState(initial.storyAsOfflineMode === true);
+    const [globalChatUiStyle, setGlobalChatUiStyle] = useState<"classic" | "imessage">(
+        () => initial.globalChatUiStyle || "classic"
+    );
+    const [globalBeautyPreset, setGlobalBeautyPreset] = useState<"classic" | "glass">(
+        () => initial.globalBeautyPreset || "classic"
+    );
+
+    const purgeAllCustomCSS = () => {
+        setCustomCSS("");
+        setDraftCSS("");
+        saveSettings({ globalChatCustomCSS: "" });
+        try { kvSet("chat-app-custom-css", ""); } catch {}
+        const sessions = loadChatSessions();
+        const updated = sessions.map(s => (s.customCSS || "").trim() ? { ...s, customCSS: "" } : s);
+        saveChatSessions(updated);
+        for (const s of sessions) {
+            window.dispatchEvent(new CustomEvent("chat-session-css-updated", { detail: { sessionId: s.id, css: "" } }));
+        }
+    };
+
+    const handleSwitchUiStyle = (nextStyle: "classic" | "imessage") => {
+        setGlobalChatUiStyle(nextStyle);
+        saveSettings({ globalChatUiStyle: nextStyle });
+        purgeAllCustomCSS();
+        window.dispatchEvent(new Event("chat-app-settings-updated"));
+    };
+
+    const handleSwitchBeautyPreset = (nextPreset: "classic" | "glass") => {
+        setGlobalBeautyPreset(nextPreset);
+        saveSettings({ globalBeautyPreset: nextPreset });
+        purgeAllCustomCSS();
+        window.dispatchEvent(new Event("chat-app-settings-updated"));
+    };
     const [editingCSS, setEditingCSS] = useState(false);
     const [editingStatus, setEditingStatus] = useState(false);
     const [editingMeetingInvite, setEditingMeetingInvite] = useState(false);
@@ -346,6 +381,35 @@ export function GlobalChatInfoSettings({ onBack }: { onBack: () => void }) {
             <div className="page-menu chat-info-menu">
                 <div className="px-4 pb-2 ts-12 text-[var(--c-text)] opacity-65">单独会话设置优先于这里；这里只改变聊天室，不会修改主页用户资料。状态栏仍仅用于私聊。</div>
                 <div className="menu-group">
+                    <div className="menu-item">
+                        <Sparkles size={20} className="text-[var(--c-icon)]" />
+                        <div className="menu-label-group">
+                            <span className="menu-label">消息界面风格</span>
+                            <span className="menu-desc">经典布局或 iMessage 拟态风格（切换自动清空自定义 CSS）</span>
+                        </div>
+                        <div className="menu-right">
+                            <button
+                                type="button"
+                                className="ui-btn ui-btn-ghost h-8 px-3 text-xs"
+                                onClick={() => handleSwitchUiStyle(globalChatUiStyle === "imessage" ? "classic" : "imessage")}
+                            >
+                                {globalChatUiStyle === "imessage" ? "iMessage 拟态" : "经典模式"}
+                            </button>
+                        </div>
+                    </div>
+                    <div className="menu-item">
+                        <Sparkles size={20} className="text-[var(--c-icon)]" />
+                        <div className="menu-label-group">
+                            <span className="menu-label">全局美化预设</span>
+                            <span className="menu-desc">普通实色或 Liquid Glass 拟态半透玻璃质感</span>
+                        </div>
+                        <div className="menu-right">
+                            <BeautyPresetPicker
+                                value={globalBeautyPreset}
+                                onChange={handleSwitchBeautyPreset}
+                            />
+                        </div>
+                    </div>
                     <div className="menu-item">
                         <Play size={20} className="text-[var(--c-icon)]" />
                         <div className="menu-label-group"><span className="menu-label">剧情入口</span><span className="menu-desc">用剧情作为线下模式；旧线下记录进入时可选择迁移方式</span></div>

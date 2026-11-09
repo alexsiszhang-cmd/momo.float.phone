@@ -386,6 +386,10 @@ export type ChatAppSettings = {
     floatingDockEnabled?: boolean; // 悬浮球贴边半隐藏收拢模式（默认关）
     /** 用剧情 APP 取代聊天输入栏原“线下模式”入口。 */
     storyAsOfflineMode?: boolean;
+    /** 全局聊天界面风格：classic=经典普通，imessage=苹果拟态 */
+    globalChatUiStyle?: "classic" | "imessage";
+    /** 全局美化预设：classic=经典实色，glass=拟态半透玻璃 */
+    globalBeautyPreset?: "classic" | "glass";
 };
 
 // ── 聊天提示音配置 ────────────────────────────────────────────────
