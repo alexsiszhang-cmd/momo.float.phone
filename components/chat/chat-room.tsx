@@ -1381,13 +1381,13 @@ export function ChatRoom({ session, onBack, onDeleted, onUserMessageSent, contac
 
     const wrapperRef = useRef<HTMLDivElement>(null);
     const isIMessage = useMemo(
-        () => (session.chatUiStyle || loadChatAppSettings().globalChatUiStyle) === "imessage",
+        () => (loadChatAppSettings().globalChatUiStyle || session.chatUiStyle) === "imessage",
         [session.chatUiStyle, chatAppSettingsRevision],
     );
-    const beautyPreset = useMemo(
-        () => resolveChatBeautyPreset(session),
-        [session.beautyPreset, session.glassBubblesEnabled, chatAppSettingsRevision],
-    );
+    const beautyPreset = useMemo(() => {
+        const globalPreset = loadChatAppSettings().globalBeautyPreset;
+        return globalPreset || resolveChatBeautyPreset(session);
+    }, [session.beautyPreset, session.glassBubblesEnabled, chatAppSettingsRevision]);
     const chatAppearance = useChatAppearance(bgImageResolved);
     useGlassContrast(wrapperRef, bgImageResolved, isIMessage && beautyPreset === "glass", chatAppearance.dark);
     const [showHeaderCallMenu, setShowHeaderCallMenu] = useState(false);

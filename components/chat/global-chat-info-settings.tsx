@@ -149,7 +149,14 @@ export function GlobalChatInfoSettings({ onBack }: { onBack: () => void }) {
         saveSettings({ globalChatCustomCSS: "" });
         try { kvSet("chat-app-custom-css", ""); } catch {}
         const sessions = loadChatSessions();
-        const updated = sessions.map(s => (s.customCSS || "").trim() ? { ...s, customCSS: "" } : s);
+        const updated = sessions.map(s => {
+            const copy = { ...s };
+            delete copy.customCSS;
+            delete copy.chatUiStyle;
+            delete copy.beautyPreset;
+            delete copy.glassBubblesEnabled;
+            return copy;
+        });
         saveChatSessions(updated);
         for (const s of sessions) {
             window.dispatchEvent(new CustomEvent("chat-session-css-updated", { detail: { sessionId: s.id, css: "" } }));
@@ -231,18 +238,41 @@ export function GlobalChatInfoSettings({ onBack }: { onBack: () => void }) {
         saveSettings({ storyAsOfflineMode: value });
     };
 
-    // 全部角色恢复默认：清空每个会话的单独聊天室 CSS，全部回落到全局聊天室 CSS / 主页外观 CSS。
-    // 逐个派发 chat-session-css-updated，让正打开的聊天室（含桌面小窗）立即生效。
+    // 全部角色恢复默认：清空每个会话的单独聊天室 CSS、风格覆盖与美化覆盖，全部统一跟随全局。
     const resetAllSessionCSS = () => {
         const sessions = loadChatSessions();
-        const withCSS = sessions.filter(s => (s.customCSS || "").trim());
-        if (!withCSS.length) { alert("所有聊天都在跟随全局样式，没有需要恢复的"); return; }
-        if (!window.confirm(`将清除 ${withCSS.length} 个私聊/群聊的单独 CSS，全部恢复为默认样式（全局聊天室 CSS 不受影响）。确定继续吗？`)) return;
-        saveChatSessions(sessions.map(s => (s.customCSS || "").trim() ? { ...s, customCSS: "" } : s));
-        for (const s of withCSS) {
+        const hasOverride = (s: typeof sessions[number]) =>
+            Boolean((s.customCSS || "").trim() || s.chatUiStyle || s.beautyPreset || s.glassBubblesEnabled !== undefined);
+        const withOverrides = sessions.filter(hasOverride);
+        if (!withOverrides.length) {
+            const cleaned = sessions.map(s => {
+                const copy = { ...s };
+                delete copy.customCSS;
+                delete copy.chatUiStyle;
+                delete copy.beautyPreset;
+                delete copy.glassBubblesEnabled;
+                return copy;
+            });
+            saveChatSessions(cleaned);
+            window.dispatchEvent(new Event("chat-app-settings-updated"));
+            alert("已强制同步：所有聊天室已统一恢复为全局样式");
+            return;
+        }
+        if (!window.confirm(`将清除 ${withOverrides.length} 个私聊/群聊的单独覆盖设置（包括单独 CSS、残留独立风格），全部统一跟随全局样式。确定继续吗？`)) return;
+        const cleaned = sessions.map(s => {
+            const copy = { ...s };
+            delete copy.customCSS;
+            delete copy.chatUiStyle;
+            delete copy.beautyPreset;
+            delete copy.glassBubblesEnabled;
+            return copy;
+        });
+        saveChatSessions(cleaned);
+        for (const s of sessions) {
             window.dispatchEvent(new CustomEvent("chat-session-css-updated", { detail: { sessionId: s.id, css: "" } }));
         }
-        alert(`已恢复 ${withCSS.length} 个聊天的默认样式`);
+        window.dispatchEvent(new Event("chat-app-settings-updated"));
+        alert(`已恢复 ${withOverrides.length} 个聊天的默认样式，全部跟随全局`);
     };
 
     const statusPayload = JSON.stringify({
