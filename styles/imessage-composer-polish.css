@@ -1,13 +1,23 @@
 /* Classic/glass composer detail polish; keep SP and input behavior unchanged. */
 .chat-room-wrapper[data-imessage-private]:is([data-beauty-preset="classic"],[data-beauty-preset="glass"]) .chat-plus-toggle svg line {
-  stroke-width:1.15;
+  stroke-width: 1.15;
 }
-.chat-room-wrapper[data-imessage-private]:is([data-beauty-preset="classic"],[data-beauty-preset="glass"]) .imessage-composer-subject-label,
-.chat-room-wrapper[data-imessage-private]:is([data-beauty-preset="classic"],[data-beauty-preset="glass"]) .chat-input-textarea::placeholder {
-  color:color-mix(in srgb,var(--im26-composer-hint,#707075) 64%,transparent);
+
+/* 占位符与主题标签：去除过度透明的 color-mix，保持高保真清晰灰度 */
+.chat-room-wrapper[data-imessage-private] .imessage-composer-subject-label {
+  color: #55555a !important;
+  font-weight: 500 !important;
 }
+.chat-room-wrapper[data-imessage-private] .chat-input-textarea::placeholder {
+  color: #78787d !important;
+}
+.chat-room-wrapper[data-imessage-private] .chat-input-textarea {
+  color: #111111 !important;
+}
+
 .chat-room-wrapper[data-imessage-private]:is([data-beauty-preset="classic"],[data-beauty-preset="glass"]) .chat-voice-message-btn svg {
-  width:25px; height:25px;
+  width: 25px;
+  height: 25px;
 }
 
 /* 顶栏层级保障：浮动药丸与操作小钮始终位于滚动消息上方 */
@@ -31,7 +41,131 @@
 .chat-room-wrapper[data-imessage-private] .chat-input-bar {
   background: transparent !important;
 }
-.chat-room-wrapper[data-imessage-private] .chat-input-textarea {
-  background: transparent !important;
+
+/* ── 核心修复 1：长按消息气泡快捷菜单对比度彻底修复 ── */
+.chat-room-wrapper[data-imessage-private] .chat-floating-ctx-menu {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid rgba(60, 60, 67, 0.16) !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+  backdrop-filter: blur(24px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(160%) !important;
+  border-radius: 16px !important;
+  padding: 6px 4px !important;
+  color: #111111 !important;
+  z-index: 100 !important;
 }
 
+/* 浅色/默认模式下的长按操作按钮文字：深黑清晰，拒绝白底白字 */
+.chat-room-wrapper[data-imessage-private] .chat-floating-ctx-menu .ctx-menu-btn {
+  color: #111111 !important;
+  font-weight: 500 !important;
+  font-size: calc(13px * var(--app-text-scale, 1)) !important;
+  padding: 6px 12px !important;
+  border-right: 1px solid rgba(60, 60, 67, 0.14) !important;
+}
+
+.chat-room-wrapper[data-imessage-private] .chat-floating-ctx-menu .ctx-menu-btn:last-of-type {
+  border-right: none !important;
+}
+
+.chat-room-wrapper[data-imessage-private] .chat-floating-ctx-menu .ctx-menu-btn:active {
+  opacity: 0.65 !important;
+}
+
+/* 危险按钮（重试以下、删除、删除以下）：亮红 */
+.chat-room-wrapper[data-imessage-private] .chat-floating-ctx-menu .ctx-menu-btn-danger {
+  color: #ff3b30 !important;
+  font-weight: 600 !important;
+}
+
+/* 三角标与菜单背景同色 */
+.chat-room-wrapper[data-imessage-private] .chat-floating-ctx-menu .ctx-menu-triangle {
+  border-bottom-color: rgba(255, 255, 255, 0.94) !important;
+  border-top-color: rgba(255, 255, 255, 0.94) !important;
+}
+
+/* 深色模式下的长按菜单 */
+.chat-room-wrapper[data-imessage-private]:is([data-chat-dark], [data-dark-wallpaper]) .chat-floating-ctx-menu {
+  background: rgba(36, 36, 40, 0.94) !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45) !important;
+  color: #f5f5f7 !important;
+}
+
+.chat-room-wrapper[data-imessage-private]:is([data-chat-dark], [data-dark-wallpaper]) .chat-floating-ctx-menu .ctx-menu-btn {
+  color: #f5f5f7 !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.14) !important;
+}
+
+.chat-room-wrapper[data-imessage-private]:is([data-chat-dark], [data-dark-wallpaper]) .chat-floating-ctx-menu .ctx-menu-btn-danger {
+  color: #ff453a !important;
+}
+
+.chat-room-wrapper[data-imessage-private]:is([data-chat-dark], [data-dark-wallpaper]) .chat-floating-ctx-menu .ctx-menu-triangle {
+  border-bottom-color: rgba(36, 36, 40, 0.94) !important;
+  border-top-color: rgba(36, 36, 40, 0.94) !important;
+}
+
+/* ── 核心修复 2：浅色壁纸/默认界面下顶栏和底栏控件清晰度保障 ── */
+.chat-room-wrapper[data-imessage-private]:not([data-dark-wallpaper]):not([data-chat-dark]) .imessage-header-button {
+  background: rgba(255, 255, 255, 0.85) !important;
+  border-color: rgba(255, 255, 255, 0.95) !important;
+  box-shadow: 0 4px 16px rgba(50, 55, 65, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+  color: #111111 !important;
+}
+
+.chat-room-wrapper[data-imessage-private]:not([data-dark-wallpaper]):not([data-chat-dark]) .imessage-contact-name {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border-color: rgba(255, 255, 255, 0.95) !important;
+  box-shadow: 0 4px 14px rgba(50, 55, 65, 0.1) !important;
+  color: #111111 !important;
+  font-weight: 600 !important;
+}
+
+.chat-room-wrapper[data-imessage-private]:not([data-dark-wallpaper]):not([data-chat-dark]) .imessage-contact-chevron {
+  color: #8e8e93 !important;
+}
+
+.chat-room-wrapper[data-imessage-private]:not([data-dark-wallpaper]):not([data-chat-dark]) .imessage-header-call-option {
+  background: rgba(255, 255, 255, 0.88) !important;
+  color: #111111 !important;
+}
+
+.chat-room-wrapper[data-imessage-private]:not([data-dark-wallpaper]):not([data-chat-dark]) .chat-plus-toggle {
+  background: rgba(255, 255, 255, 0.85) !important;
+  border-color: rgba(255, 255, 255, 0.95) !important;
+  box-shadow: 0 4px 16px rgba(50, 55, 65, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+  color: #111111 !important;
+}
+
+.chat-room-wrapper[data-imessage-private]:not([data-dark-wallpaper]):not([data-chat-dark]) .chat-voice-message-btn {
+  color: #55555a !important;
+}
+
+/* ── 核心修复 3：深色壁纸/深色模式下顶栏和底栏控件清晰度保障 ── */
+.chat-room-wrapper[data-imessage-private]:is([data-dark-wallpaper], [data-chat-dark]) .imessage-header-button {
+  background: rgba(44, 44, 48, 0.8) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  color: #ffffff !important;
+}
+
+.chat-room-wrapper[data-imessage-private]:is([data-dark-wallpaper], [data-chat-dark]) .imessage-contact-name {
+  background: rgba(44, 44, 48, 0.8) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  color: #ffffff !important;
+}
+
+.chat-room-wrapper[data-imessage-private]:is([data-dark-wallpaper], [data-chat-dark]) .chat-plus-toggle {
+  background: rgba(44, 44, 48, 0.8) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  color: #ffffff !important;
+}
+
+.chat-room-wrapper[data-imessage-private]:is([data-dark-wallpaper], [data-chat-dark]) .chat-input-textarea {
+  color: #f5f5f7 !important;
+}
+
+.chat-room-wrapper[data-imessage-private]:is([data-dark-wallpaper], [data-chat-dark]) .imessage-composer-subject-label,
+.chat-room-wrapper[data-imessage-private]:is([data-dark-wallpaper], [data-chat-dark]) .chat-input-textarea::placeholder {
+  color: rgba(255, 255, 255, 0.65) !important;
+}

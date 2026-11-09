@@ -34,7 +34,7 @@ export function useGlassContrast(root: RefObject<HTMLDivElement|null>, backgroun
             for(const node of host.querySelectorAll<HTMLElement>(`${controls},${bubbles},${menus},.chat-input-bar[data-imessage-private]`)){
                 const b=node.getBoundingClientRect();if(!b.width||!b.height||b.bottom<rect.top||b.top>rect.bottom)continue;
                 // A blocked remote image retains a readable light-ink fallback on wallpaper.
-                let level=background?90:dark?25:245;
+                let level=dark?25:245;
                 if(sample)level=sampleCoveredWallpaper(sample.pixels,sample.width,sample.height,rect.width,rect.height,{x:b.left-rect.left,y:b.top-rect.top,width:b.width,height:b.height});
                 const threshold=node.matches(bubbles)?160:185;
                 const previous=lastLight.get(node),light=level>(threshold+(previous===true?-6:previous===false?6:0));lastLight.set(node,light);

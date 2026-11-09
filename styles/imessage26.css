@@ -1501,7 +1501,7 @@
 .chat-room-wrapper[data-imessage-private][data-glass-bubbles] .chat-input-bar[data-imessage-private]::after {
   content: none;
 }
-.chat-room-wrapper[data-imessage-private][data-glass-bubbles][data-has-bg-image] :is(
+.chat-room-wrapper[data-imessage-private][data-glass-bubbles]:is([data-dark-wallpaper],[data-chat-dark]) :is(
   .imessage-header-button,
   .imessage-contact-name,
   .chat-monologue-heart,
@@ -1510,22 +1510,22 @@
   color: rgba(255,255,255,.95);
   text-shadow: 0 1px 3px rgba(7,18,28,.22);
 }
-.chat-room-wrapper[data-imessage-private][data-glass-bubbles][data-has-bg-image] .chat-input-bar[data-imessage-private]::before {
+.chat-room-wrapper[data-imessage-private][data-glass-bubbles]:is([data-dark-wallpaper],[data-chat-dark]) .chat-input-bar[data-imessage-private]::before {
   border-color: transparent;
   background: linear-gradient(155deg, rgba(255,255,255,.24) 0%, rgba(255,255,255,.065) 18%, rgba(255,255,255,.012) 36%, transparent 52%), linear-gradient(rgba(12,20,27,.2) 0 0);
   box-shadow: 0 4px 13px rgba(5,17,27,.11), inset 0 1px 0 rgba(255,255,255,.18);
   -webkit-backdrop-filter: blur(4px) saturate(166%) contrast(1.12);
   backdrop-filter: blur(4px) saturate(166%) contrast(1.12);
 }
-.chat-room-wrapper[data-imessage-private][data-glass-bubbles][data-has-bg-image] {
+.chat-room-wrapper[data-imessage-private][data-glass-bubbles]:is([data-dark-wallpaper],[data-chat-dark]) {
   --im26-composer-hint: rgba(255,255,255,.9);
   --im26-composer-divider: rgba(255,255,255,.36);
 }
-.chat-room-wrapper[data-imessage-private][data-glass-bubbles][data-has-bg-image] .chat-reasoning-trigger {
+.chat-room-wrapper[data-imessage-private][data-glass-bubbles]:is([data-dark-wallpaper],[data-chat-dark]) .chat-reasoning-trigger {
   color: rgba(255,255,255,.92);
   text-shadow: 0 1px 3px rgba(7,18,28,.24);
 }
-.chat-room-wrapper[data-imessage-private][data-glass-bubbles][data-has-bg-image] .chat-input-bar[data-imessage-private] .chat-input-textarea {
+.chat-room-wrapper[data-imessage-private][data-glass-bubbles]:is([data-dark-wallpaper],[data-chat-dark]) .chat-input-bar[data-imessage-private] .chat-input-textarea {
   color: rgba(255,255,255,.96);
   text-shadow: 0 1px 3px rgba(7,18,28,.2);
 }
@@ -2829,7 +2829,7 @@
   color: color-mix(in srgb, var(--im26-composer-hint, #4c4d52) 82%, white 18%);
 }
 
-.chat-room-wrapper[data-imessage-private][data-glass-bubbles][data-has-bg-image] .chat-voice-message-btn {
+.chat-room-wrapper[data-imessage-private][data-glass-bubbles]:is([data-dark-wallpaper],[data-chat-dark]) .chat-voice-message-btn {
   color: rgba(255,255,255,.92);
 }
 
