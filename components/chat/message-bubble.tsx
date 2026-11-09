@@ -753,49 +753,24 @@ function QuoteBubble({
     };
 
     return (
-        <div
-            className={`chat-quote-message chat-quote-message-${role}`}
-            style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 8,
-                width: "100%",
-                alignItems: role === "user" ? "flex-end" : "flex-start",
-                alignSelf: role === "user" ? "flex-end" : "flex-start",
-            }}
-        >
+        <div className={`chat-quote-message chat-quote-message-${role}`}>
+            <div className="chat-quote-connector" aria-hidden="true" />
             <div
-                className="chat-quote-group"
-                style={{
-                    position: "relative",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 8,
-                    maxWidth: "85%",
-                    alignItems: role === "user" ? "flex-end" : "flex-start",
-                    alignSelf: role === "user" ? "flex-end" : "flex-start",
-                    marginLeft: role === "user" ? "auto" : undefined,
-                    marginRight: role === "assistant" ? "auto" : undefined,
-                }}
+                className="chat-quote-preview cursor-pointer select-none"
+                onClick={handleJumpToSource}
+                role="button"
+                tabIndex={0}
+                title="点击定位到原消息"
             >
-                <div className="chat-quote-connector" aria-hidden="true" />
-                <div
-                    className="chat-quote-preview cursor-pointer select-none"
-                    onClick={handleJumpToSource}
-                    role="button"
-                    tabIndex={0}
-                    title="点击定位到原消息"
-                >
-                    {previewText}
-                </div>
-                <div className="chat-quote-reply">
-                    <span className="imessage-bubble-surface" aria-hidden="true" />
-                    <TextBubble
-                        content={displayContent ?? msg.content}
-                        onActionSelect={onActionSelect}
-                        defaultTranslationExpanded={defaultTranslationExpanded}
-                    />
-                </div>
+                {previewText}
+            </div>
+            <div className="chat-quote-reply">
+                <span className="imessage-bubble-surface" aria-hidden="true" />
+                <TextBubble
+                    content={displayContent ?? msg.content}
+                    onActionSelect={onActionSelect}
+                    defaultTranslationExpanded={defaultTranslationExpanded}
+                />
             </div>
         </div>
     );

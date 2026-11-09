@@ -289,20 +289,23 @@
   display: flex !important;
   flex-direction: column !important;
   gap: 8px !important;
-  width: 100% !important;
-  max-width: 100% !important;
+  width: fit-content !important;
+  max-width: 82% !important;
+  box-sizing: border-box !important;
 }
 
 .chat-room-wrapper[data-imessage-private] .chat-quote-message-user {
   align-items: flex-end !important;
   align-self: flex-end !important;
   margin-left: auto !important;
+  margin-right: 0 !important;
 }
 
 .chat-room-wrapper[data-imessage-private] .chat-quote-message-assistant {
   align-items: flex-start !important;
   align-self: flex-start !important;
   margin-right: auto !important;
+  margin-left: 0 !important;
 }
 
 /* 微缩原消息胶囊 */
@@ -310,7 +313,7 @@
   position: relative !important;
   z-index: 2 !important;
   width: fit-content !important;
-  max-width: 82% !important;
+  max-width: 100% !important;
   min-height: 28px !important;
   padding: 6px 14px !important;
   border: 1px solid rgba(60, 60, 67, 0.22) !important;
@@ -329,7 +332,7 @@
   position: relative !important;
   z-index: 2 !important;
   width: fit-content !important;
-  max-width: 82% !important;
+  max-width: 100% !important;
   min-width: 36px !important;
   min-height: 40px !important;
   padding: 10px 15px !important;
