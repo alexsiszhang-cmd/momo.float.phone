@@ -756,12 +756,14 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
         const trimmed = inputText.trim();
         if (!trimmed) {
             if (isIMessage) {
-                onTriggerAIResponse();
+                if (!isGenerating) {
+                    onTriggerAIResponse();
+                }
                 onClosePanels();
             }
             return;
         }
-        if (!onSendText(trimmed)) return;
+        if (!onSendText(trimmed, { autoReply: isIMessage })) return;
         setInputText("");
         resetTextareaHeight();
         onClosePanels();
@@ -942,7 +944,7 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
                 <button
                     onClick={handleSubmit}
                     onMouseDown={e => {
-                        if (isIMessage) e.preventDefault();
+                        if (isIMessage && !inputText.trim()) e.preventDefault();
                     }}
                     disabled={!isGenerating && (inputLocked || (!isIMessage && !inputText.trim()))}
                     style={inputLocked && !isGenerating ? { opacity: 0.35 } : undefined}
@@ -3903,19 +3905,15 @@ export function ChatRoom({ session, onBack, onDeleted, onUserMessageSent, contac
     };
 
     const triggerAIResponse = async () => {
-        if (isGeneratingRef.current) {
-            if (activeGenerationRuns.has(session.id)) return;
-            // 上一轮被外部取消/顶替后收尾提前返回过，标记已是陈旧状态：复位后继续本次请求
-            isGeneratingRef.current = false;
-            setIsGenerating(false);
-            clearGenerationLock(session.id);
+        if (isGeneratingRef.current && activeGenerationRuns.has(session.id)) {
+            return;
         }
+        isGeneratingRef.current = true;
         const generationRun = createGenerationRun(session.id);
         const generationRunId = generationRun.runId;
         const isCurrentGeneration = () => isGenerationRunActive(session.id, generationRunId);
         const generationGuard: GenerationRunGuard = { signal: generationRun.controller.signal, isActive: isCurrentGeneration };
         let shouldRunDeclineReply = false;
-        isGeneratingRef.current = true;
         setIsGenerating(true);
         setPendingGenerate(false);
         setGenerationLock(session.id);
