@@ -754,7 +754,13 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
             return;
         }
         const trimmed = inputText.trim();
-        if (!trimmed) return;
+        if (!trimmed) {
+            if (isIMessage) {
+                onTriggerAIResponse();
+                onClosePanels();
+            }
+            return;
+        }
         if (!onSendText(trimmed)) return;
         setInputText("");
         resetTextareaHeight();
@@ -935,11 +941,15 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
                 </button>
                 <button
                     onClick={handleSubmit}
-                    disabled={!isGenerating && (inputLocked || !inputText.trim())}
+                    onMouseDown={e => {
+                        if (isIMessage) e.preventDefault();
+                    }}
+                    disabled={!isGenerating && (inputLocked || (!isIMessage && !inputText.trim()))}
                     style={inputLocked && !isGenerating ? { opacity: 0.35 } : undefined}
                     className={`ui-bare-btn text-[var(--c-text)] ${isIMessage ? "chat-send-btn" : ""}`}
-                    aria-label={isGenerating ? "停止本轮生成" : "发送"}
-                    title={isGenerating ? "停止本轮生成" : "发送"}
+                    aria-label={isGenerating ? "停止本轮生成" : (isIMessage && !inputText.trim() ? "触发回复" : "发送")}
+                    title={isGenerating ? "停止本轮生成" : (isIMessage && !inputText.trim() ? "触发回复" : "发送")}
+                    {...(isGenerating ? { "data-generating": "" } : {})}
                 >
                     {isGenerating ? (
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
