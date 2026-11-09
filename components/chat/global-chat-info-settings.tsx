@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { BellRing, ChevronRight, Code, Image as ImageIcon, LayoutPanelTop, Play, RotateCcw, Sparkles, User, X } from "lucide-react";
 import { kvSet } from "@/lib/kv-db";
-import { BeautyPresetPicker } from "./beauty-preset-picker";
 import { PageShell } from "@/components/ui/page-shell";
 import CSSSchemeBar from "@/components/ui/css-scheme-picker";
 import { Toggle } from "@/components/ui/form";
@@ -404,10 +403,13 @@ export function GlobalChatInfoSettings({ onBack }: { onBack: () => void }) {
                             <span className="menu-desc">普通实色或 Liquid Glass 拟态半透玻璃质感</span>
                         </div>
                         <div className="menu-right">
-                            <BeautyPresetPicker
-                                value={globalBeautyPreset}
-                                onChange={handleSwitchBeautyPreset}
-                            />
+                            <button
+                                type="button"
+                                className="ui-btn ui-btn-ghost h-8 px-3 text-xs"
+                                onClick={() => handleSwitchBeautyPreset(globalBeautyPreset === "glass" ? "classic" : "glass")}
+                            >
+                                {globalBeautyPreset === "glass" ? "Liquid Glass 玻璃" : "经典模式"}
+                            </button>
                         </div>
                     </div>
                     <div className="menu-item">
