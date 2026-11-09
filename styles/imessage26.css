@@ -3262,14 +3262,14 @@
 }
 .chat-room-wrapper.chat-room-wrapper[data-imessage-private][data-glass-bubbles] :is(
   .chat-bubble-role-assistant[data-media-type="text"], .chat-stream-bubble,
-  .chat-bubble-role-assistant[data-media-type="audio"], .chat-quote-message-assistant .chat-quote-reply
+  .chat-bubble-role-assistant[data-media-type="audio"], .chat-quote-message-assistant .chat-quote-reply, .chat-quote-message-user .chat-quote-reply
 ) {
   --bubble-text-ink: var(--im26-local-bubble-ink, #f8fafc);
-  color: var(--im26-local-bubble-ink, #f8fafc);
+  color: var(--im26-local-bubble-ink, #f8fafc) !important;
 }
 .chat-room-wrapper.chat-room-wrapper[data-imessage-private][data-glass-bubbles] :is(
   .chat-bubble-role-assistant[data-media-type="text"], .chat-stream-bubble,
-  .chat-bubble-role-assistant[data-media-type="audio"], .chat-quote-message-assistant .chat-quote-reply
+  .chat-bubble-role-assistant[data-media-type="audio"], .chat-quote-message-assistant .chat-quote-reply, .chat-quote-message-user .chat-quote-reply
 ) > .imessage-bubble-surface {
   background: var(--im26-local-bubble-fill, var(--im26-char-bubble-fill));
   -webkit-backdrop-filter: blur(6px) saturate(112%);
@@ -3278,7 +3278,7 @@
 }
 .chat-room-wrapper[data-imessage-private][data-glass-bubbles] :is(
   .chat-bubble-role-assistant[data-media-type="text"], .chat-stream-bubble,
-  .chat-bubble-role-assistant[data-media-type="audio"], .chat-quote-message-assistant .chat-quote-reply
+  .chat-bubble-role-assistant[data-media-type="audio"], .chat-quote-message-assistant .chat-quote-reply, .chat-quote-message-user .chat-quote-reply
 ) > .imessage-bubble-surface::after {
   content: "";
   position: absolute;
