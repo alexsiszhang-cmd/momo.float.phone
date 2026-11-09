@@ -91,6 +91,13 @@ import { emitChatPluginEvent, getChatPluginHookBus, runChatPluginTransform } fro
 import { CHAT_PLUGIN_TOAST_EVENT, getChatPluginRuntime } from "@/lib/chat-plugin-runtime";
 import { ChatPluginSlot } from "@/components/chat/chat-plugin-slot";
 import { addChatFavorite } from "@/lib/favorites-storage";
+import "@/styles/imessage-composer-polish.css";
+import { resolveChatBeautyPreset } from "@/lib/chat-beauty-preset";
+import { useChatAppearance } from "./use-chat-appearance";
+import { useGlassContrast } from "./use-glass-contrast";
+import { HeaderVideoIcon } from "./header-video-icon";
+import { ChatUnreadPill } from "./chat-unread-pill";
+import { IMessageTapbackBadge } from "./imessage-tapback-badge";
 import {
     createOrGetStorySession,
     hydrateStoryStorage,
@@ -667,6 +674,7 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
     onStopGeneration: () => void;
     onTriggerAIResponse: () => void;
 	onSendSticker: (name: string, url?: string) => void;
+    isIMessage?: boolean;
 }>(function ChatTextInputBar({
     characterName,
     characterId,
@@ -699,6 +707,7 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
     onStopGeneration,
     onTriggerAIResponse,
     onSendSticker,
+    isIMessage,
 }, ref) {
     const [inputText, setInputText] = useState("");
     const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -780,7 +789,11 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
     ];
 
     return (
-        <div className="chat-input-bar chat-room-main-pane flex flex-col" data-ui="input">
+        <div
+            className="chat-input-bar chat-room-main-pane flex flex-col"
+            data-ui="input"
+            {...(isIMessage ? { "data-imessage-private": "" } : {})}
+        >
             {theaterMode && (
                 <div className="chat-theater-mode-strip" role="status">
                     <span className="chat-theater-mode-icon" aria-hidden="true">
@@ -1289,6 +1302,11 @@ export function ChatRoom({ session, onBack, onDeleted, onUserMessageSent, contac
     const [bgLoading, setBgLoading] = useState(!!effectiveBackgroundImage);
 
     const wrapperRef = useRef<HTMLDivElement>(null);
+    const isIMessage = session.chatUiStyle === "imessage";
+    const beautyPreset = resolveChatBeautyPreset(session);
+    const chatAppearance = useChatAppearance(bgImageResolved);
+    useGlassContrast(wrapperRef, bgImageResolved, isIMessage && beautyPreset === "glass", chatAppearance.dark);
+    const [showHeaderCallMenu, setShowHeaderCallMenu] = useState(false);
 
     // 全屏特效：命中触发词的新消息播放表情雨/礼花（微信同款）
     const [activeScreenEffect, setActiveScreenEffect] = useState<ActiveScreenEffect | null>(null);
@@ -5866,7 +5884,28 @@ export function ChatRoom({ session, onBack, onDeleted, onUserMessageSent, contac
     } : undefined;
 
     return (
-        <div ref={wrapperRef} className={`session-${session.id} chat-room-wrapper page-shell inset-0 flex flex-col z-20`} style={chatRoomBackgroundStyle} {...(bgLoading ? { "data-loading": "" } : {})} {...(bgImageResolved ? { "data-has-bg-image": "" } : {})} {...(showSettings ? { "data-settings-open": "" } : {})}>
+        <div
+            ref={wrapperRef}
+            className={`session-${session.id} chat-room-wrapper page-shell inset-0 flex flex-col z-20`}
+            style={chatRoomBackgroundStyle}
+            {...(isIMessage ? { "data-imessage-private": "" } : {})}
+            {...(isIMessage && beautyPreset === "glass" ? { "data-glass-bubbles": "" } : {})}
+            data-beauty-preset={beautyPreset}
+            data-chat-dark={chatAppearance.dark || undefined}
+            data-dark-wallpaper={chatAppearance.darkWallpaper || undefined}
+            {...(isIMessage && session.isGroup ? { "data-imessage-group": "" } : {})}
+            {...(isIMessage && quotingMessage ? { "data-imessage-quote-compose": "" } : {})}
+            {...(isIMessage && activeMessageId && contextMenuAnchor ? { "data-imessage-context-open": "" } : {})}
+            {...(bgLoading ? { "data-loading": "" } : {})}
+            {...(bgImageResolved ? { "data-has-bg-image": "" } : {})}
+            {...(showSettings ? { "data-settings-open": "" } : {})}
+            onPointerDown={(e) => {
+                const target = e.target as HTMLElement;
+                if (showHeaderCallMenu && !target.closest(".imessage-header-call-control")) {
+                    setShowHeaderCallMenu(false);
+                }
+            }}
+        >
             {/* CSS priority: session > global chat info > homepage appearance CSS. */}
             {globalChatCSS && (
                 <SessionCustomCSS css={globalChatCSS} scope={`.session-${session.id}`} />
@@ -5880,27 +5919,90 @@ export function ChatRoom({ session, onBack, onDeleted, onUserMessageSent, contac
             {/* Header */}
             <header className="page-header chat-room-main-pane" data-ui="header">
                 <div className="page-header-safe-area" />
-                <div className="page-header-content">
-                    <button className="page-back-btn" type="button" onClick={onBack} aria-label="返回">
-                        <ChevronLeft size={24} strokeWidth={1.5} />
-                    </button>
-                    <span className="page-title" style={{ position: 'relative' }}>
-                        {offlineMode ? "线下 · " : ""}
-                        {session.isGroup
-                            ? `${session.groupName || "群聊"}(${(session.participantIds?.length || 0) + (session.isSpectator ? 0 : 1)})`
-                            : (session.alias || character?.name || `User_${session.contactId.slice(-4)}`)}
-                        {(isGenerating || isOfflineGenerating) && (
-                            <span className="chat-typing-indicator">
-                                {offlineMode ? "线下生成中" : "对方正在输入"}<span className="chat-typing-dots"><i/><i/><i/></span>
+                {isIMessage ? (
+                    <div className="page-header-content imessage-private-header">
+                        <ChatUnreadPill sessionId={session.id} onBack={onBack} />
+                        <button className="imessage-contact-card" type="button" onClick={() => setShowSettings(true)} aria-label={session.isGroup ? "群聊设置" : "联系人详情"}>
+                            <span className="imessage-contact-avatar">
+                                {character?.avatar ? <img src={character.avatar} alt="" /> : <ChatFallbackAvatar />}
                             </span>
-                        )}
-                    </span>
-                    <span className="page-header-right" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                        <button className="page-back-btn" type="button" onClick={() => setShowSettings(true)} aria-label="更多">
-                            <MoreHorizontal size={22} strokeWidth={1.5} />
+                            <span className="imessage-contact-name">
+                                {session.isGroup ? (session.groupName || "群聊") : (session.alias || character?.name || `User_${session.contactId.slice(-4)}`)}
+                                <span className="imessage-contact-chevron" aria-hidden="true">›</span>
+                            </span>
                         </button>
-                    </span>
-                </div>
+                        <div className="imessage-header-call-control">
+                            <button
+                                className="imessage-header-button imessage-header-video"
+                                type="button"
+                                onClick={() => setShowHeaderCallMenu(open => !open)}
+                                aria-label="选择通话方式"
+                                aria-haspopup="menu"
+                                aria-expanded={showHeaderCallMenu}
+                            >
+                                <HeaderVideoIcon />
+                            </button>
+                            {showHeaderCallMenu && (
+                                <div className="imessage-header-call-menu" role="menu" aria-label="通话方式">
+                                    <button
+                                        type="button"
+                                        className="imessage-header-call-option"
+                                        role="menuitem"
+                                        aria-label="语音通话"
+                                        title="语音通话"
+                                        onClick={() => {
+                                            cancelFollowUp(session.id);
+                                            setShowHeaderCallMenu(false);
+                                            setCallInitiator("user");
+                                            setShowVoiceCall(true);
+                                        }}
+                                    >
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <path fill="currentColor" d="M6.62 10.79a15.46 15.46 0 0 0 6.59 6.59l2.2-2.2a1 1 0 0 1 1.02-.24c1.12.37 2.33.57 3.57.57a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1C10.61 21 3 13.39 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1.02Z" />
+                                        </svg>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="imessage-header-call-option"
+                                        role="menuitem"
+                                        aria-label="视频通话"
+                                        title="视频通话"
+                                        onClick={() => {
+                                            cancelFollowUp(session.id);
+                                            setShowHeaderCallMenu(false);
+                                            setCallInitiator("user");
+                                            setShowVideoCall(true);
+                                        }}
+                                    >
+                                        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="12" height="12" rx="3" /><path d="m15 10 5-3v10l-5-3Z" /></svg>
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                ) : (
+                    <div className="page-header-content">
+                        <button className="page-back-btn" type="button" onClick={onBack} aria-label="返回">
+                            <ChevronLeft size={24} strokeWidth={1.5} />
+                        </button>
+                        <span className="page-title" style={{ position: 'relative' }}>
+                            {offlineMode ? "线下 · " : ""}
+                            {session.isGroup
+                                ? `${session.groupName || "群聊"}(${(session.participantIds?.length || 0) + (session.isSpectator ? 0 : 1)})`
+                                : (session.alias || character?.name || `User_${session.contactId.slice(-4)}`)}
+                            {(isGenerating || isOfflineGenerating) && (
+                                <span className="chat-typing-indicator">
+                                    {offlineMode ? "线下生成中" : "对方正在输入"}<span className="chat-typing-dots"><i/><i/><i/></span>
+                                </span>
+                            )}
+                        </span>
+                        <span className="page-header-right" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                            <button className="page-back-btn" type="button" onClick={() => setShowSettings(true)} aria-label="更多">
+                                <MoreHorizontal size={22} strokeWidth={1.5} />
+                            </button>
+                        </span>
+                    </div>
+                )}
             </header>
             <ChatPluginSlot
                 name="chat.header"
@@ -6272,6 +6374,18 @@ export function ChatRoom({ session, onBack, onDeleted, onUserMessageSent, contac
                     const isMultiSelected = !!selectableStoredId && selectedMessageIds.has(selectableStoredId);
                     const blacklistEvent = msg.mediaData?.blacklistEvent;
                     const isBlacklistEventExpanded = Boolean(blacklistEvent && expandedBlacklistEventIds.has(msg.id));
+                    let nextVisibleMsg: RenderChatMessage | null = null;
+                    for (let nextIdx = idx + 1; nextIdx < projectedMessages.length; nextIdx += 1) {
+                        if (voiceCallGroups.memberSet.has(nextIdx)) continue;
+                        const candidate = projectedMessages[nextIdx];
+                        const candidateDisplayContent = getMessageDisplayContent(candidate);
+                        if (isHiddenChatFlowMessage(candidate, candidateDisplayContent)) continue;
+                        nextVisibleMsg = candidate;
+                        break;
+                    }
+                    const nextIsSameSpeaker = nextVisibleMsg && uiRole(nextVisibleMsg) === uiRole(msg) && uiRole(msg) !== "system"
+                        && (!session.isGroup || nextVisibleMsg.senderCharacterId === msg.senderCharacterId);
+                    const isTail = !nextVisibleMsg || !nextIsSameSpeaker || shouldShowTimestamp(nextVisibleMsg.createdAt, msg.createdAt);
                     const multiSelectWrapperProps = isMultiSelectable ? {
                         onClickCapture: (e: React.MouseEvent) => {
                             e.preventDefault();
@@ -6311,6 +6425,7 @@ export function ChatRoom({ session, onBack, onDeleted, onUserMessageSent, contac
                                 id={`message-${msg.id}`}
                                 className="chat-msg-wrapper"
                                 data-role={uiRole(msg)}
+                                {...(isIMessage && isTail ? { "data-imessage-tail": "" } : {})}
                                 {...(isEmptyBubble && renderMsg.reasoningText ? { "data-reasoning-empty": "" } : {})}
                                 {...(isConsecutive ? { "data-consecutive": "" } : {})}
                                 {...(activeMessageId === msg.id ? { "data-active": "" } : {})}
@@ -6504,10 +6619,15 @@ export function ChatRoom({ session, onBack, onDeleted, onUserMessageSent, contac
                                             style={isStandaloneHtmlPreview ? STANDALONE_CARD_BUBBLE_STYLE : undefined}
                                             data-ui={msg.role === "user" ? "bubble-user" : "bubble-bot"}
                                             data-msg-id={msg.id}
+                                            data-media-type={renderMsg.mediaType || "text"}
                                             {...(activeMessageId === msg.id ? { "data-active": "" } : {})}
                                             >
                                             {/* Message Actions Popup */}
                                             {activeMessageId === msg.id && renderBubbleContextMenu(msg)}
+
+                                            {(!renderMsg.mediaType || String(renderMsg.mediaType) === "text" || renderMsg.mediaType === "audio") && (
+                                                <span className="imessage-bubble-surface" aria-hidden="true" />
+                                            )}
 
                                             <MessageBubble
                                                 msg={renderMsg}
@@ -6532,6 +6652,13 @@ export function ChatRoom({ session, onBack, onDeleted, onUserMessageSent, contac
                                                 onMeetingInviteAction={handleMeetingInviteAction}
                                                 defaultTranslationExpanded={session.collapseBilingualTranslation !== false ? false : true}
                                             />
+                                            {renderMsg.mediaData?.tapback && (
+                                                <IMessageTapbackBadge
+                                                    tapback={renderMsg.mediaData.tapback}
+                                                    tapbackBy={renderMsg.mediaData.tapbackBy || "user"}
+                                                    reactions={renderMsg.mediaData.tapbacks}
+                                                />
+                                            )}
                                         </div>
                                         </div>}
                                         {msg.role !== "user" && !isSilentThought && !isEmptyBubble && hasFoldedPanel && (
@@ -6755,6 +6882,7 @@ export function ChatRoom({ session, onBack, onDeleted, onUserMessageSent, contac
                 ref={chatTextInputRef}
                 characterName={character?.name || "对方"}
                 characterId={session.contactId}
+                isIMessage={isIMessage}
 	                stickerCharacterIds={session.isGroup ? session.participantIds : undefined}
 	                isGroup={!!session.isGroup}
 	                isSpectator={!!session.isGroup && !!session.isSpectator}
