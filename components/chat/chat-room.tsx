@@ -747,7 +747,19 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
         },
     }), [appendText]);
 
-    const handleSubmit = () => {
+    // 回车键发送：仅发送文本上屏，不触发 API 调用，满足连续发送多条消息的需求
+    const handleEnterSend = () => {
+        if (inputLocked || isGenerating) return;
+        const trimmed = inputText.trim();
+        if (!trimmed) return;
+        if (!onSendText(trimmed, { autoReply: false })) return;
+        setInputText("");
+        resetTextareaHeight();
+        onClosePanels();
+    };
+
+    // 点击按钮发送：明确点击操作才触发 API 调用回复
+    const handleButtonClick = () => {
         if (inputLocked) return;
         if (isGenerating) {
             onStopGeneration();
@@ -909,7 +921,7 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
                     }
                     if (shouldSendChatInputOnEnter(e, enterToSendEnabled)) {
                         e.preventDefault();
-                        handleSubmit();
+                        handleEnterSend();
                     }
                 }}
                 enterKeyHint={enterToSendEnabled ? "send" : "enter"}
@@ -942,7 +954,7 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" /></svg>
                 </button>
                 <button
-                    onClick={handleSubmit}
+                    onClick={handleButtonClick}
                     onMouseDown={e => {
                         if (isIMessage && !inputText.trim()) e.preventDefault();
                     }}
