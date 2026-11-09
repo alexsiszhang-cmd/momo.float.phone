@@ -2,7 +2,7 @@
 import { useEffect, type RefObject } from "react";
 
 const controls = '.imessage-header-button,.imessage-contact-name,.chat-plus-toggle,.chat-monologue-heart,.imessage-quote-compose-close,.chat-voice-message-btn';
-const bubbles = '.chat-bubble-role-assistant[data-media-type="text"],.chat-stream-bubble,.chat-bubble-role-assistant[data-media-type="audio"],.chat-quote-message-assistant .chat-quote-reply,.chat-quote-message-user .chat-quote-reply';
+const bubbles = '.chat-bubble-role-assistant[data-media-type="text"],.chat-stream-bubble,.chat-bubble-role-assistant[data-media-type="audio"],.chat-quote-message-assistant .chat-quote-reply';
 const menus = '.imessage-context-index,.imessage-context-tapbar,.chat-floating-ctx-menu';
 const properties = ['--im26-local-control-ink','--im26-local-control-text-shadow','--im26-local-bubble-ink','--im26-local-bubble-fill','--im26-local-bubble-outline','--im26-local-composer-ink','--im26-local-menu-ink','--im26-local-menu-fill'];
 

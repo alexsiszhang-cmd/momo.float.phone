@@ -360,6 +360,20 @@
   background: var(--im26-incoming, #e9e9eb) !important;
 }
 
+/* 玻璃模式拟态：气泡主体透明，由内部 imessage-bubble-surface 承载毛玻璃质感光泽与对比度 */
+.chat-room-wrapper[data-imessage-private][data-glass-bubbles] .chat-quote-message-user .chat-quote-reply,
+.chat-room-wrapper[data-imessage-private][data-glass-bubbles] .chat-quote-message-assistant .chat-quote-reply {
+  background: transparent !important;
+}
+
+.chat-room-wrapper[data-imessage-private][data-glass-bubbles] .chat-quote-message-user .chat-quote-reply {
+  color: #ffffff !important;
+}
+
+.chat-room-wrapper[data-imessage-private][data-glass-bubbles] .chat-quote-message-assistant .chat-quote-reply {
+  color: var(--im26-local-bubble-ink, #f8fafc) !important;
+}
+
 /* 侧边 U 型平滑弧线连线（连接微缩胶囊与主气泡） */
 .chat-room-wrapper[data-imessage-private] .chat-quote-connector {
   position: absolute !important;
