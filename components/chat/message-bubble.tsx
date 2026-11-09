@@ -753,8 +753,7 @@ function QuoteBubble({
     };
 
     return (
-        <div className={`chat-quote-message chat-quote-message-${role}`}>
-            <div className="chat-quote-connector" aria-hidden="true" />
+        <div className="chat-quote-classic flex flex-col gap-1.5 min-w-0">
             <div
                 className="chat-quote-preview cursor-pointer select-none"
                 onClick={handleJumpToSource}
@@ -764,8 +763,7 @@ function QuoteBubble({
             >
                 {previewText}
             </div>
-            <div className="chat-quote-reply">
-                <span className="imessage-bubble-surface" aria-hidden="true" />
+            <div className="chat-quote-reply-body">
                 <TextBubble
                     content={displayContent ?? msg.content}
                     onActionSelect={onActionSelect}

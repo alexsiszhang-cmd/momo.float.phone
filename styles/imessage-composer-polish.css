@@ -261,156 +261,64 @@
   color: inherit !important;
 }
 
-/* ── 核心修复 6：iMessage 原生消息引用（Linked Reply）物理结构与高保真样式保障 ── */
-.chat-room-wrapper[data-imessage-private] .chat-msg-wrapper[data-role="user"] .chat-msg-content-wrap:has([data-media-type="quote"]),
-.chat-room-wrapper[data-imessage-private] .chat-msg-wrapper[data-role="user"] .chat-msg-content-wrap:has(.chat-quote-message),
-.chat-room-wrapper[data-imessage-private] .chat-msg-wrapper[data-role="assistant"] .chat-msg-content-wrap:has([data-media-type="quote"]),
-.chat-room-wrapper[data-imessage-private] .chat-msg-wrapper[data-role="assistant"] .chat-msg-content-wrap:has(.chat-quote-message) {
-  width: 100% !important;
-  max-width: 100% !important;
-}
-
-.chat-room-wrapper[data-imessage-private] :is(.chat-bubble-role-user, .chat-bubble-role-assistant)[data-media-type="quote"] {
-  width: 100% !important;
-  max-width: 100% !important;
-  padding: 0 !important;
-  border: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-.chat-room-wrapper[data-imessage-private] :is(.chat-bubble-role-user, .chat-bubble-role-assistant)[data-media-type="quote"]::before,
-.chat-room-wrapper[data-imessage-private] :is(.chat-bubble-role-user, .chat-bubble-role-assistant)[data-media-type="quote"]::after {
-  content: none !important;
-}
-
-.chat-room-wrapper[data-imessage-private] .chat-quote-message {
-  position: relative !important;
+/* ── 核心修复 6：经典内嵌消息引用（单气泡内嵌缩进条，回归通用通信软件成熟架构） ── */
+.chat-quote-classic {
   display: flex !important;
   flex-direction: column !important;
-  gap: 8px !important;
-  width: fit-content !important;
-  max-width: 82% !important;
-  box-sizing: border-box !important;
+  gap: 6px !important;
+  min-width: 0 !important;
+  width: 100% !important;
 }
 
-.chat-room-wrapper[data-imessage-private] .chat-quote-message-user {
-  align-items: flex-end !important;
-  align-self: flex-end !important;
-  margin-left: auto !important;
-  margin-right: 0 !important;
-}
-
-.chat-room-wrapper[data-imessage-private] .chat-quote-message-assistant {
-  align-items: flex-start !important;
-  align-self: flex-start !important;
-  margin-right: auto !important;
-  margin-left: 0 !important;
-}
-
-/* 微缩原消息胶囊 */
-.chat-room-wrapper[data-imessage-private] .chat-quote-preview {
-  position: relative !important;
-  z-index: 2 !important;
-  width: fit-content !important;
-  max-width: 100% !important;
-  min-height: 28px !important;
-  padding: 6px 14px !important;
-  border: 1px solid rgba(60, 60, 67, 0.22) !important;
-  border-radius: 16px !important;
-  color: #55555d !important;
-  background: rgba(250, 250, 252, 0.92) !important;
-  font-size: calc(11.5px * var(--app-text-scale, 1)) !important;
+/* 经典内嵌引用条：半透明衬底 + 左侧垂直播条 */
+.chat-quote-classic .chat-quote-preview {
+  display: -webkit-box !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 2 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  padding: 5px 9px !important;
+  border-radius: 4px !important;
+  font-size: calc(11px * var(--app-text-scale, 1)) !important;
   line-height: 1.35 !important;
-  backdrop-filter: blur(10px) saturate(120%) !important;
-  -webkit-backdrop-filter: blur(10px) saturate(120%) !important;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04) !important;
-}
-
-/* 当前回复主体气泡 */
-.chat-room-wrapper[data-imessage-private] .chat-quote-reply {
-  position: relative !important;
-  z-index: 2 !important;
-  width: fit-content !important;
-  max-width: 100% !important;
-  min-width: 36px !important;
-  min-height: 40px !important;
-  padding: 10px 15px !important;
-  border-radius: 20px !important;
-  font-size: calc(14px * var(--app-text-scale, 1)) !important;
-  line-height: 1.38 !important;
-  letter-spacing: -0.08px !important;
-  overflow-wrap: anywhere !important;
+  cursor: pointer !important;
+  user-select: none !important;
   word-break: break-word !important;
+  margin: 0 0 2px 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
-/* 用户引用：深天蓝色气泡，白色文字 */
-.chat-room-wrapper[data-imessage-private] .chat-quote-message-user .chat-quote-reply {
-  color: #ffffff !important;
-  background: var(--im26-blue, #38acfc) !important;
+/* 用户气泡（右侧）：高透白色衬底 + 白色左边线，文字透白 */
+.chat-bubble-role-user .chat-quote-classic .chat-quote-preview {
+  background: rgba(255, 255, 255, 0.18) !important;
+  border-left: 3px solid rgba(255, 255, 255, 0.85) !important;
+  border-top: none !important;
+  border-right: none !important;
+  border-bottom: none !important;
+  color: rgba(255, 255, 255, 0.9) !important;
 }
 
-.chat-room-wrapper[data-imessage-private] .chat-quote-message-user .chat-quote-reply * {
-  color: #ffffff !important;
+/* 角色气泡（左侧）：高透黑色衬底 + 浅灰左边线，文字柔灰 */
+.chat-bubble-role-assistant .chat-quote-classic .chat-quote-preview {
+  background: rgba(0, 0, 0, 0.05) !important;
+  border-left: 3px solid rgba(0, 0, 0, 0.28) !important;
+  border-top: none !important;
+  border-right: none !important;
+  border-bottom: none !important;
+  color: var(--im26-secondary, #666) !important;
 }
 
-/* 角色引用：浅灰色气泡，深黑文字 */
-.chat-room-wrapper[data-imessage-private] .chat-quote-message-assistant .chat-quote-reply {
-  color: var(--im26-ink, #050505) !important;
-  background: var(--im26-incoming, #e9e9eb) !important;
+/* 暗色模式适配 */
+.chat-room-wrapper:is([data-chat-dark], [data-dark-wallpaper]) .chat-bubble-role-assistant .chat-quote-classic .chat-quote-preview {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-left-color: rgba(255, 255, 255, 0.45) !important;
+  color: rgba(255, 255, 255, 0.75) !important;
 }
 
-/* 侧边 U 型平滑弧线连线（连接微缩胶囊与主气泡） */
-.chat-room-wrapper[data-imessage-private] .chat-quote-connector {
-  position: absolute !important;
-  top: 14px !important;
-  bottom: 18px !important;
-  z-index: 1 !important;
-  width: 22px !important;
-  border-color: rgba(60, 60, 67, 0.42) !important;
-  border-style: solid !important;
-  pointer-events: none !important;
-}
-
-/* 用户回复（右侧）：连线在右侧内部贴合两颗气泡左边缘向外弯曲 */
-.chat-room-wrapper[data-imessage-private] .chat-quote-message-user .chat-quote-connector {
-  right: auto !important;
-  left: -14px !important;
-  border-width: 3px 0 3px 3px !important;
-  border-radius: 16px 0 0 16px !important;
-}
-
-/* 角色回复（左侧）：连线在左侧贴合向左弯曲 */
-.chat-room-wrapper[data-imessage-private] .chat-quote-message-assistant .chat-quote-connector {
-  left: auto !important;
-  right: -14px !important;
-  border-width: 3px 3px 3px 0 !important;
-  border-radius: 0 16px 16px 0 !important;
-}
-
-.chat-room-wrapper[data-imessage-private] .chat-quote-connector::before,
-.chat-room-wrapper[data-imessage-private] .chat-quote-connector::after {
-  content: "" !important;
-  position: absolute !important;
-  width: 5px !important;
-  height: 5px !important;
-  border-radius: 50% !important;
-  background: rgba(60, 60, 67, 0.6) !important;
-}
-
-.chat-room-wrapper[data-imessage-private] .chat-quote-message-user .chat-quote-connector::before {
-  top: -4px !important;
-  right: -2px !important;
-}
-.chat-room-wrapper[data-imessage-private] .chat-quote-message-user .chat-quote-connector::after {
-  bottom: -4px !important;
-  right: -2px !important;
-}
-.chat-room-wrapper[data-imessage-private] .chat-quote-message-assistant .chat-quote-connector::before {
-  top: -4px !important;
-  left: -2px !important;
-}
-.chat-room-wrapper[data-imessage-private] .chat-quote-message-assistant .chat-quote-connector::after {
-  bottom: -4px !important;
-  left: -2px !important;
+.chat-quote-classic .chat-quote-reply-body {
+  font-size: inherit !important;
+  line-height: inherit !important;
+  color: inherit !important;
 }
