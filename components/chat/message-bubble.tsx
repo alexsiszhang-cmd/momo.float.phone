@@ -34,8 +34,10 @@ import { toCustomAppIconId } from "@/lib/custom-app-types";
 import { ChatPluginSlot } from "@/components/chat/chat-plugin-slot";
 import { CustomStatusFrame } from "@/components/chat/custom-status-frame";
 import { CHAT_PLUGIN_SLOTS_CHANGED_EVENT, getChatPluginRuntime } from "@/lib/chat-plugin-runtime";
+import { getQuotePreview, normalizeQuotePreviewText } from "@/lib/chat-quote-preview";
 
 interface MessageBubbleProps {
+    quoteSource?: ChatMessage;
     msg: ChatMessage;
     onUpdate?: (updated: ChatMessage) => void;
     charName?: string;
@@ -93,7 +95,7 @@ function PluginKindBubble({ msg, kind }: { msg: ChatMessage; kind: string }) {
  * Renders a message bubble based on its mediaType.
  * Falls back to ReactMarkdown for plain text messages.
  */
-export const MessageBubble = memo(function MessageBubble({ msg, onUpdate, charName, userName, onSystemMessage, groupSize, onShowDetail, characterId, onMusicPlay, onActionSelect, onMeetingInviteAction, displayContent, defaultTranslationExpanded = false, onFavoriteMedia }: MessageBubbleProps) {
+export const MessageBubble = memo(function MessageBubble({ msg, onUpdate, charName, userName, onSystemMessage, groupSize, onShowDetail, characterId, onMusicPlay, onActionSelect, onMeetingInviteAction, displayContent, defaultTranslationExpanded = false, onFavoriteMedia, quoteSource }: MessageBubbleProps) {
     switch (msg.mediaType) {
         case "listening_invite":
             return <ListeningInviteCard msg={msg} />;
@@ -120,7 +122,7 @@ export const MessageBubble = memo(function MessageBubble({ msg, onUpdate, charNa
         case "dice":
             return <DiceBubble msg={msg} />;
         case "quote":
-            return <QuoteBubble msg={msg} displayContent={displayContent} defaultTranslationExpanded={defaultTranslationExpanded} />;
+            return <QuoteBubble msg={msg} displayContent={displayContent} defaultTranslationExpanded={defaultTranslationExpanded} onActionSelect={onActionSelect} quoteSource={quoteSource} />;
         case "music_share":
             return <MusicShareBubble msg={msg} onPlay={onMusicPlay} />;
         case "media_file":
@@ -715,6 +717,63 @@ export const BilingualTextBlock = memo(function BilingualTextBlock({
 
 function TextBubble({ content, onActionSelect, defaultTranslationExpanded = false }: { content: string; onActionSelect?: (text: string) => void; defaultTranslationExpanded?: boolean }) {
     return <BilingualTextBlock text={content} onActionSelect={onActionSelect} mode="markdown" defaultExpanded={defaultTranslationExpanded} />;
+}
+
+function QuoteBubble({
+    msg,
+    displayContent,
+    defaultTranslationExpanded = false,
+    onActionSelect,
+    quoteSource,
+}: {
+    msg: ChatMessage;
+    displayContent?: string;
+    defaultTranslationExpanded?: boolean;
+    onActionSelect?: (text: string) => void;
+    quoteSource?: ChatMessage;
+}) {
+    const rawPreview = quoteSource
+        ? getQuotePreview(quoteSource)
+        : (msg.mediaData?.quotePreview ? normalizeQuotePreviewText(msg.mediaData.quotePreview) : "");
+    const previewText = rawPreview || "消息";
+    const quoteMessageId = msg.mediaData?.quoteMessageId || quoteSource?.id;
+    const role = msg.role === "user" ? "user" : "assistant";
+
+    const handleJumpToSource = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!quoteMessageId) return;
+        const target = document.getElementById(`message-${quoteMessageId}`);
+        if (target) {
+            target.scrollIntoView({ behavior: "smooth", block: "center" });
+            target.setAttribute("data-highlight", "");
+            setTimeout(() => {
+                target.removeAttribute("data-highlight");
+            }, 2000);
+        }
+    };
+
+    return (
+        <div className={`chat-quote-message chat-quote-message-${role}`}>
+            <div className="chat-quote-connector" aria-hidden="true" />
+            <div
+                className="chat-quote-preview cursor-pointer select-none"
+                onClick={handleJumpToSource}
+                role="button"
+                tabIndex={0}
+                title="点击定位到原消息"
+            >
+                {previewText}
+            </div>
+            <div className="chat-quote-reply">
+                <span className="imessage-bubble-surface" aria-hidden="true" />
+                <TextBubble
+                    content={displayContent ?? msg.content}
+                    onActionSelect={onActionSelect}
+                    defaultTranslationExpanded={defaultTranslationExpanded}
+                />
+            </div>
+        </div>
+    );
 }
 
 // ── Red Packet ─────────────────────────────

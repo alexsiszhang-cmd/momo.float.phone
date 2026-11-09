@@ -98,6 +98,7 @@ import { useGlassContrast } from "./use-glass-contrast";
 import { HeaderVideoIcon } from "./header-video-icon";
 import { ChatUnreadPill } from "./chat-unread-pill";
 import { IMessageTapbackBadge } from "./imessage-tapback-badge";
+import { getQuotePreview } from "@/lib/chat-quote-preview";
 import {
     createOrGetStorySession,
     hydrateStoryStorage,
@@ -841,7 +842,7 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
             {quotingMessage && (
                 <div className="chat-quote-bar">
                     <div className="flex-1 ts-12 text-[var(--c-icon)] overflow-hidden text-ellipsis whitespace-nowrap">
-                        引用 {quotingMessage.role === "user" ? "你" : characterName}: {quotingMessage.content.slice(0, 40)}
+                        引用 {quotingMessage.role === "user" ? "你" : characterName}: {getQuotePreview(quotingMessage)}
                     </div>
                     <button onClick={onClearQuote} className="ui-bare-btn text-[var(--c-icon)] ts-16 leading-none p-[2px]">✕</button>
                 </div>
@@ -4346,7 +4347,7 @@ export function ChatRoom({ session, onBack, onDeleted, onUserMessageSent, contac
         const isQuoting = !!quotingMessage;
         const quoteData = quotingMessage ? {
             quoteMessageId: quotingMessage.id,
-            quotePreview: quotingMessage.content.slice(0, 50),
+            quotePreview: getQuotePreview(quotingMessage),
             quoteRole: quotingMessage.role,
         } : undefined;
         setQuotingMessage(null);
@@ -6715,6 +6716,7 @@ export function ChatRoom({ session, onBack, onDeleted, onUserMessageSent, contac
 
                                             <MessageBubble
                                                 msg={renderMsg}
+                                                quoteSource={renderMsg.mediaType === "quote" ? messages.find(source => source.id === renderMsg.mediaData?.quoteMessageId) : undefined}
                                                 displayContent={msg.displayProjected ? undefined : bubbleDisplayContent}
                                                 charName={character?.name}
                                                 userName={userIdentity?.name || "你"}
