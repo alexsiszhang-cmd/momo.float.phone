@@ -99,8 +99,8 @@
 .chat-room-wrapper[data-imessage-private] .imessage-quote-compose-bubble[data-role="user"] > .imessage-bubble-surface::before { left:auto; right:7px; transform:none; }
 /* Composite an opaque body and tail before applying alpha once. */
 .imessage-bubble-surface { display:none; }
-.chat-room-wrapper[data-imessage-private] :is(.chat-bubble-role-user,.chat-bubble-role-assistant,.chat-quote-reply):has(> .imessage-bubble-surface) { background:transparent !important; isolation:isolate; }
-.chat-room-wrapper[data-imessage-private] :is(.chat-bubble-role-user,.chat-bubble-role-assistant,.chat-quote-reply):has(> .imessage-bubble-surface)::before { content:none !important; }
+.chat-room-wrapper[data-imessage-private] :is(.chat-bubble-role-user,.chat-bubble-role-assistant):has(> .imessage-bubble-surface) { background:transparent !important; isolation:isolate; }
+.chat-room-wrapper[data-imessage-private] :is(.chat-bubble-role-user,.chat-bubble-role-assistant):has(> .imessage-bubble-surface)::before { content:none !important; }
 .chat-room-wrapper[data-imessage-private] .imessage-bubble-surface {
  display:block; position:absolute; inset:0; border-radius:inherit; z-index:-1; pointer-events:none;
  background:color-mix(in srgb,var(--bubble-surface-color, #e9e9eb),white var(--chat-edge-lighten,0%));
@@ -1640,10 +1640,49 @@
   overflow: visible;
 }
 
+.chat-room-wrapper[data-imessage-private] .chat-msg-wrapper[data-role="user"] .chat-msg-content-wrap:has(.chat-bubble-role-user[data-media-type="quote"]) {
+  align-items: flex-end;
+}
+.chat-room-wrapper[data-imessage-private] .chat-quote-message-user .chat-quote-group {
+  align-items: flex-end;
+  align-self: flex-end;
+  margin-left: auto;
+}
+.chat-room-wrapper[data-imessage-private] .chat-quote-message-user .chat-quote-preview {
+  margin-left: auto !important;
+  margin-right: 0 !important;
+}
+.chat-room-wrapper[data-imessage-private] .chat-quote-message-user .chat-quote-reply {
+  margin-left: auto;
+  margin-right: 0;
+  color: var(--bubble-text-ink, #fff) !important;
+  background: var(--im26-blue) !important;
+}
+.chat-room-wrapper[data-imessage-private] .chat-quote-message-user .chat-quote-reply * {
+  color: inherit;
+}
 .chat-room-wrapper[data-imessage-private] .chat-quote-message-user {
   align-items: flex-end;
 }
 
+.chat-room-wrapper[data-imessage-private] .chat-msg-wrapper[data-role="assistant"] .chat-msg-content-wrap:has(.chat-bubble-role-assistant[data-media-type="quote"]) {
+  align-items: flex-start;
+}
+.chat-room-wrapper[data-imessage-private] .chat-quote-message-assistant .chat-quote-group {
+  align-items: flex-start;
+  align-self: flex-start;
+  margin-right: auto;
+}
+.chat-room-wrapper[data-imessage-private] .chat-quote-message-assistant .chat-quote-preview {
+  margin-right: auto !important;
+  margin-left: 0 !important;
+}
+.chat-room-wrapper[data-imessage-private] .chat-quote-message-assistant .chat-quote-reply {
+  margin-right: auto;
+  margin-left: 0;
+  color: var(--bubble-text-ink, var(--im26-ink)) !important;
+  background: var(--im26-incoming) !important;
+}
 .chat-room-wrapper[data-imessage-private] .chat-quote-message-assistant {
   align-items: flex-start;
 }

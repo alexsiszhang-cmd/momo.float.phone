@@ -773,6 +773,9 @@ function QuoteBubble({
                     gap: 8,
                     maxWidth: "85%",
                     alignItems: role === "user" ? "flex-end" : "flex-start",
+                    alignSelf: role === "user" ? "flex-end" : "flex-start",
+                    marginLeft: role === "user" ? "auto" : undefined,
+                    marginRight: role === "assistant" ? "auto" : undefined,
                 }}
             >
                 <div className="chat-quote-connector" aria-hidden="true" />
