@@ -6710,7 +6710,7 @@ export function ChatRoom({ session, onBack, onDeleted, onUserMessageSent, contac
                                             {/* Message Actions Popup */}
                                             {activeMessageId === msg.id && renderBubbleContextMenu(msg)}
 
-                                            {(!renderMsg.mediaType || String(renderMsg.mediaType) === "text" || renderMsg.mediaType === "audio" || renderMsg.mediaType === "quote") && (
+                                            {(!renderMsg.mediaType || String(renderMsg.mediaType) === "text" || renderMsg.mediaType === "audio") && (
                                                 <span className="imessage-bubble-surface" aria-hidden="true" />
                                             )}
 

@@ -735,7 +735,7 @@
 .chat-room-wrapper[data-imessage-group] .chat-msg-wrapper[data-role="user"] .chat-msg-content-wrap:not(:has(.chat-bubble-media)) {
   max-width: 72% !important;
 }
-.chat-room-wrapper[data-imessage-group][data-imessage-private] :is(.chat-bubble-role-user, .chat-bubble-role-assistant):not(.chat-bubble-media),
+.chat-room-wrapper[data-imessage-group][data-imessage-private] :is(.chat-bubble-role-user, .chat-bubble-role-assistant):not(.chat-bubble-media):not([data-media-type="quote"]),
 .chat-room-wrapper[data-imessage-group][data-imessage-private] .chat-quote-reply {
   padding: 8px 12px;
   min-height: 34px;
@@ -744,7 +744,7 @@
   font-size: calc(13px * var(--app-text-scale, 1));
   line-height: 1.38;
 }
-.chat-room-wrapper[data-imessage-group][data-imessage-private] .chat-msg-wrapper .chat-msg-content-wrap:has([data-media-type="legacy-unused-quote"]) {
+.chat-room-wrapper[data-imessage-group][data-imessage-private] .chat-msg-wrapper .chat-msg-content-wrap:has([data-media-type="quote"]) {
   width: 100%;
   max-width: 100% !important;
 }
@@ -884,11 +884,11 @@
   transition: box-shadow 160ms ease;
 }
 
-.chat-room-wrapper[data-imessage-private] :is(.chat-bubble-role-user, .chat-bubble-role-assistant)[data-active][data-media-type="legacy-unused-quote"] {
+.chat-room-wrapper[data-imessage-private] :is(.chat-bubble-role-user, .chat-bubble-role-assistant)[data-active][data-media-type="quote"] {
   box-shadow: none !important;
 }
 
-.chat-room-wrapper[data-imessage-private] :is(.chat-bubble-role-user, .chat-bubble-role-assistant)[data-active][data-media-type="legacy-unused-quote"] .chat-quote-reply {
+.chat-room-wrapper[data-imessage-private] :is(.chat-bubble-role-user, .chat-bubble-role-assistant)[data-active][data-media-type="quote"] .chat-quote-reply {
   box-shadow: 0 11px 28px rgba(0, 0, 0, .2);
   transition: box-shadow 160ms ease;
 }
@@ -1604,15 +1604,15 @@
    The persisted message remains one record, but its quoted source and reply
    render as two independent bubbles joined by the fixed opposite-edge arc. */
 .chat-room-wrapper[data-imessage-private] .chat-msg-wrapper[data-role="user"]
-  .chat-msg-content-wrap:has(.chat-bubble-role-user[data-media-type="legacy-unused-quote"]),
+  .chat-msg-content-wrap:has(.chat-bubble-role-user[data-media-type="quote"]),
 .chat-room-wrapper[data-imessage-private] .chat-msg-wrapper[data-role="assistant"]
-  .chat-msg-content-wrap:has(.chat-bubble-role-assistant[data-media-type="legacy-unused-quote"]) {
+  .chat-msg-content-wrap:has(.chat-bubble-role-assistant[data-media-type="quote"]) {
   width: 100%;
   max-width: 100% !important;
 }
 
-.chat-room-wrapper[data-imessage-private] .chat-bubble-role-user[data-media-type="legacy-unused-quote"],
-.chat-room-wrapper[data-imessage-private] .chat-bubble-role-assistant[data-media-type="legacy-unused-quote"] {
+.chat-room-wrapper[data-imessage-private] .chat-bubble-role-user[data-media-type="quote"],
+.chat-room-wrapper[data-imessage-private] .chat-bubble-role-assistant[data-media-type="quote"] {
   width: 100%;
   min-width: 0;
   min-height: 0;
@@ -1623,10 +1623,10 @@
   background: transparent;
 }
 
-.chat-room-wrapper[data-imessage-private] .chat-bubble-role-user[data-media-type="legacy-unused-quote"]::before,
-.chat-room-wrapper[data-imessage-private] .chat-bubble-role-user[data-media-type="legacy-unused-quote"]::after,
-.chat-room-wrapper[data-imessage-private] .chat-bubble-role-assistant[data-media-type="legacy-unused-quote"]::before,
-.chat-room-wrapper[data-imessage-private] .chat-bubble-role-assistant[data-media-type="legacy-unused-quote"]::after {
+.chat-room-wrapper[data-imessage-private] .chat-bubble-role-user[data-media-type="quote"]::before,
+.chat-room-wrapper[data-imessage-private] .chat-bubble-role-user[data-media-type="quote"]::after,
+.chat-room-wrapper[data-imessage-private] .chat-bubble-role-assistant[data-media-type="quote"]::before,
+.chat-room-wrapper[data-imessage-private] .chat-bubble-role-assistant[data-media-type="quote"]::after {
   content: none;
 }
 
