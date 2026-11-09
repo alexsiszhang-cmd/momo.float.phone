@@ -713,6 +713,7 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
     const textareaRef = useRef<HTMLTextAreaElement | null>(null);
     // 表情包搜索联想：ESC/失焦置 true 隐藏，输入变化重新开启
     const [suggestClosed, setSuggestClosed] = useState(false);
+    const [inputFocused, setInputFocused] = useState(false);
     // 围观群/被禁言：输入与富媒体入口全部锁定，只留线下切换和生成按钮
     const [muteNowTick, setMuteNowTick] = useState(() => Date.now());
     useEffect(() => {
@@ -791,8 +792,14 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
     return (
         <div
             className="chat-input-bar chat-room-main-pane flex flex-col"
+            onFocusCapture={() => setInputFocused(true)}
+            onBlurCapture={e => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setInputFocused(false);
+            }}
             data-ui="input"
             {...(isIMessage ? { "data-imessage-private": "" } : {})}
+            {...(isIMessage && inputText.trim() ? { "data-has-text": "" } : {})}
+            {...(isIMessage && (inputFocused || inputText.trim() || isGenerating) ? { "data-show-send": "" } : {})}
         >
             {theaterMode && (
                 <div className="chat-theater-mode-strip" role="status">
@@ -832,6 +839,37 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
                     onClose={() => setSuggestClosed(true)}
                 />
             )}
+            {isIMessage && (
+                <div className="imessage-composer-subject">
+                    <span className="imessage-composer-subject-label">{isSpectator ? "导演旁白" : "主题"}</span>
+                    <div className="imessage-composer-shortcuts">
+                        <button
+                            type="button"
+                            onClick={onToggleEmojiPanel}
+                            disabled={inputLocked}
+                            className="imessage-composer-shortcut imessage-composer-emoji"
+                            aria-label="表情"
+                            title="表情"
+                            aria-pressed={showEmojiPanel}
+                            {...(showEmojiPanel ? { "data-active": "" } : {})}
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M8.5 14s1.25 1.75 3.5 1.75S15.5 14 15.5 14" /><path d="M9 9.25h.01M15 9.25h.01" /></svg>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={onToggleStickerPanel}
+                            disabled={inputLocked}
+                            className="imessage-composer-shortcut imessage-composer-sticker"
+                            aria-label="贴纸"
+                            title="贴纸"
+                            aria-pressed={showStickerPanel}
+                            {...(showStickerPanel ? { "data-active": "" } : {})}
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15.5 3H6a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h8.5L21 14.5V8.5Z" /><path d="M14.5 21v-4a2.5 2.5 0 0 1 2.5-2.5h4" /></svg>
+                        </button>
+                    </div>
+                </div>
+            )}
             <textarea
                 ref={textareaRef}
                 rows={1}
@@ -843,6 +881,7 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
                     e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
                 }}
                 onFocus={(e) => {
+                    setInputFocused(true);
                     if (panelOpen) {
                         e.target.blur();
                         onClosePanels();
@@ -851,7 +890,10 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
                     }
                     setSuggestClosed(false);
                 }}
-                onBlur={() => setSuggestClosed(true)}
+                onBlur={() => {
+                    setInputFocused(false);
+                    setSuggestClosed(true);
+                }}
                 onKeyDown={e => {
                     if (e.key === "Escape") {
                         setSuggestClosed(true);
@@ -867,13 +909,13 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
                 disabled={inputLocked}
                 placeholder={inputLocked
                     ? (isSpectator ? "围观中，你不在这个群里" : `禁言中，剩余${Math.ceil(muteRemainingMs / 60000)}分钟`)
-                    : (theaterMode ? "写下番外指令..." : undefined)}
+                    : (theaterMode ? "写下番外指令..." : (isIMessage ? "iMessage 信息" : undefined))}
             />
 
             <div className="chat-input-actions">
                 <button
                     onClick={onToggleOfflineMode}
-                    className="ui-bare-btn text-[var(--c-text)] chat-offline-toggle"
+                    className={`ui-bare-btn text-[var(--c-text)] ${isIMessage ? "chat-offline-toggle" : ""}`}
                     aria-label={storyEntryEnabled ? "剧情入口" : "线下模式"}
                     title={storyEntryEnabled ? "剧情入口" : "线下模式"}
                 >
@@ -882,20 +924,20 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
                         <circle cx="12" cy="10" r="3" />
                     </svg>
                 </button>
-                <button onClick={onToggleEmojiPanel} disabled={inputLocked} className="ui-bare-btn text-[var(--c-text)]" style={inputLocked ? { opacity: 0.35 } : undefined}>
+                <button onClick={onToggleEmojiPanel} disabled={inputLocked} className={`ui-bare-btn text-[var(--c-text)] ${isIMessage ? "chat-emoji-toggle" : ""}`} style={inputLocked ? { opacity: 0.35 } : undefined}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M8 14s1.5 2 4 2 4-2 4-2" /><line x1="9" y1="9" x2="9.01" y2="9" /><line x1="15" y1="9" x2="15.01" y2="9" /></svg>
                 </button>
-                <button onClick={onToggleStickerPanel} disabled={inputLocked} className="ui-bare-btn text-[var(--c-text)]" style={inputLocked ? { opacity: 0.35 } : undefined}>
+                <button onClick={onToggleStickerPanel} disabled={inputLocked} className={`ui-bare-btn text-[var(--c-text)] ${isIMessage ? "chat-sticker-toggle" : ""}`} style={inputLocked ? { opacity: 0.35 } : undefined}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z" /><polyline points="14 3 14 8 21 8" /><path d="M8 13h0" /><path d="M16 13h0" /><path d="M10 17c.5.3 1.2.5 2 .5s1.5-.2 2-.5" /></svg>
                 </button>
-                <button onClick={onTogglePlusMenu} disabled={inputLocked} className="ui-bare-btn text-[var(--c-text)]" style={inputLocked ? { opacity: 0.35 } : undefined}>
+                <button onClick={onTogglePlusMenu} disabled={inputLocked} className={`ui-bare-btn text-[var(--c-text)] ${isIMessage ? "chat-plus-toggle" : ""}`} style={inputLocked ? { opacity: 0.35 } : undefined}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" /></svg>
                 </button>
                 <button
                     onClick={handleSubmit}
                     disabled={!isGenerating && (inputLocked || !inputText.trim())}
                     style={inputLocked && !isGenerating ? { opacity: 0.35 } : undefined}
-                    className="ui-bare-btn text-[var(--c-text)]"
+                    className={`ui-bare-btn text-[var(--c-text)] ${isIMessage ? "chat-send-btn" : ""}`}
                     aria-label={isGenerating ? "停止本轮生成" : "发送"}
                     title={isGenerating ? "停止本轮生成" : "发送"}
                 >
@@ -908,14 +950,26 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
                     )}
                 </button>
+                {isIMessage && (
+                    <button
+                        type="button"
+                        className="ui-bare-btn text-[var(--c-text)] chat-voice-message-btn"
+                        onClick={() => onOpenRichModal("voice_msg")}
+                        disabled={inputLocked}
+                        aria-label="语音消息"
+                        title="语音消息"
+                    >
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M12 3.25a.75.75 0 0 1 .75.75v16a.75.75 0 0 1-1.5 0V4a.75.75 0 0 1 .75-.75m-4 3a.75.75 0 0 1 .75.75v10a.75.75 0 0 1-1.5 0V7A.75.75 0 0 1 8 6.25m8 0a.75.75 0 0 1 .75.75v10a.75.75 0 0 1-1.5 0V7a.75.75 0 0 1 .75-.75m-12 4a.75.75 0 0 1 .75.75v2a.75.75 0 0 1-1.5 0v-2a.75.75 0 0 1 .75-.75m16 0a.75.75 0 0 1 .75.75v2a.75.75 0 0 1-1.5 0v-2a.75.75 0 0 1 .75-.75" />
+                        </svg>
+                    </button>
+                )}
                 {!isGenerating && (
                     <button
-                        className="ui-bare-btn text-[var(--c-text)]"
+                        className={`ui-bare-btn text-[var(--c-text)] ${isIMessage ? "chat-ai-reply-btn" : ""}`}
                         title={!inputLocked && inputText.trim() ? "发送输入框内容并触发回复" : "触发 AI 主动回复"}
                         onClick={() => {
                             const trimmed = inputText.trim();
-                            // 输入框已有文字：发送输入框内容并立即触发模型回复（一次按键完成），
-                            // 避免「打完字却忘记发送」；没文字时才只触发 AI 主动回复
                             if (!inputLocked && trimmed) {
                                 if (!onSendText(trimmed, { autoReply: true })) return;
                                 setInputText("");

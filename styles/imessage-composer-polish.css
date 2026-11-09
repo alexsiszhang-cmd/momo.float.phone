@@ -9,3 +9,29 @@
 .chat-room-wrapper[data-imessage-private]:is([data-beauty-preset="classic"],[data-beauty-preset="glass"]) .chat-voice-message-btn svg {
   width:25px; height:25px;
 }
+
+/* 顶栏层级保障：浮动药丸与操作小钮始终位于滚动消息上方 */
+.chat-room-wrapper[data-imessage-private] > .page-header {
+  z-index: 50 !important;
+}
+.chat-room-wrapper[data-imessage-private] .imessage-header-button {
+  z-index: 52 !important;
+}
+.chat-room-wrapper[data-imessage-private] .imessage-contact-card {
+  z-index: 51 !important;
+}
+.chat-room-wrapper[data-imessage-private] .imessage-header-call-control {
+  z-index: 53 !important;
+}
+.chat-room-wrapper[data-imessage-private] .page-header-safe-area {
+  z-index: 60 !important;
+}
+
+/* 输入框底栏与透明表面保障 */
+.chat-room-wrapper[data-imessage-private] .chat-input-bar {
+  background: transparent !important;
+}
+.chat-room-wrapper[data-imessage-private] .chat-input-textarea {
+  background: transparent !important;
+}
+
