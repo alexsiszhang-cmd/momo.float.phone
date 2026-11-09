@@ -169,3 +169,94 @@
 .chat-room-wrapper[data-imessage-private]:is([data-dark-wallpaper], [data-chat-dark]) .chat-input-textarea::placeholder {
   color: rgba(255, 255, 255, 0.65) !important;
 }
+
+/* ── 核心修复 4：主题栏表情与贴纸按钮可见性彻底恢复 ── */
+.chat-room-wrapper[data-imessage-private] .imessage-composer-shortcuts {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+  margin-left: auto !important;
+  margin-right: 8px !important;
+}
+
+.chat-room-wrapper[data-imessage-private] .imessage-composer-shortcut {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 8px !important;
+  color: #48484a !important;
+  background: transparent !important;
+  opacity: 0.85 !important;
+  cursor: pointer !important;
+  pointer-events: auto !important;
+  transition: all 0.15s ease !important;
+}
+
+.chat-room-wrapper[data-imessage-private] .imessage-composer-shortcut:hover,
+.chat-room-wrapper[data-imessage-private] .imessage-composer-shortcut[data-active] {
+  color: #007aff !important;
+  opacity: 1 !important;
+  background: rgba(0, 122, 255, 0.12) !important;
+}
+
+.chat-room-wrapper[data-imessage-private] .imessage-composer-shortcut svg {
+  width: 19px !important;
+  height: 19px !important;
+  stroke: currentColor !important;
+}
+
+.chat-room-wrapper[data-imessage-private]:is([data-chat-dark], [data-dark-wallpaper]) .imessage-composer-shortcut {
+  color: #d1d1d6 !important;
+}
+
+.chat-room-wrapper[data-imessage-private]:is([data-chat-dark], [data-dark-wallpaper]) .imessage-composer-shortcut:hover,
+.chat-room-wrapper[data-imessage-private]:is([data-chat-dark], [data-dark-wallpaper]) .imessage-composer-shortcut[data-active] {
+  color: #0a84ff !important;
+  background: rgba(10, 132, 255, 0.18) !important;
+}
+
+/* ── 核心修复 5：表情包面板与贴纸面板浮动毛玻璃容器 ── */
+.chat-room-wrapper[data-imessage-private] .chat-emoji-panel-wrap,
+.chat-room-wrapper[data-imessage-private] .chat-sticker-panel {
+  position: absolute !important;
+  right: var(--im26-edge) !important;
+  bottom: calc(100% + 10px) !important;
+  left: var(--im26-edge) !important;
+  z-index: 70 !important;
+  height: 240px !important;
+  margin: 0 !important;
+  padding: 6px !important;
+  border: 1px solid rgba(60, 60, 67, 0.16) !important;
+  border-radius: 24px !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+  backdrop-filter: blur(24px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(160%) !important;
+  color: #111111 !important;
+  overflow: hidden !important;
+}
+
+.chat-room-wrapper[data-imessage-private]:is([data-chat-dark], [data-dark-wallpaper]) :is(.chat-emoji-panel-wrap, .chat-sticker-panel) {
+  background: rgba(36, 36, 40, 0.95) !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45) !important;
+  color: #f5f5f7 !important;
+}
+
+.chat-room-wrapper[data-imessage-private] :is(.chat-emoji-panel-wrap, .chat-sticker-panel) .emoji-category-pill {
+  color: #55555a !important;
+  font-weight: 500 !important;
+}
+
+.chat-room-wrapper[data-imessage-private] :is(.chat-emoji-panel-wrap, .chat-sticker-panel) .emoji-category-pill[data-active] {
+  color: #007aff !important;
+  background: rgba(0, 122, 255, 0.12) !important;
+  font-weight: 600 !important;
+}
+
+.chat-room-wrapper[data-imessage-private] :is(.chat-emoji-panel-wrap, .chat-sticker-panel) span {
+  color: inherit !important;
+}

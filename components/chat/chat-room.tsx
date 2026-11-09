@@ -1029,22 +1029,26 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
             )}
 
             {showEmojiPanel && (
-                <EmojiPanel
-                    onSelect={(emoji) => appendText(emoji, { focus: false })}
-                    onEffectSend={(text) => {
-                        if (inputLocked || isGenerating) return;
-                        onSendText(text);
-                        onClosePanels();
-                    }}
-                />
+                <div className="chat-emoji-panel-wrap">
+                    <EmojiPanel
+                        onSelect={(emoji) => appendText(emoji, { focus: false })}
+                        onEffectSend={(text) => {
+                            if (inputLocked || isGenerating) return;
+                            onSendText(text);
+                            onClosePanels();
+                        }}
+                    />
+                </div>
             )}
 
             {showStickerPanel && (
-                <StickerPanel
-                    onSend={onSendSticker}
-                    characterId={characterId}
-                    characterIds={stickerCharacterIds}
-                />
+                <div className="chat-sticker-panel">
+                    <StickerPanel
+                        onSend={onSendSticker}
+                        characterId={characterId}
+                        characterIds={stickerCharacterIds}
+                    />
+                </div>
             )}
         </div>
     );
