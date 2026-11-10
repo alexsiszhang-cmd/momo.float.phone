@@ -365,6 +365,17 @@
   display: none !important;
 }
 
+/* 用户发出的所有消息气泡（普通气泡与引用气泡）：彻底锁定纯白文字，严禁在任何壁纸采样或继承下变黑 */
+.chat-room-wrapper[data-imessage-private] .chat-msg-wrapper[data-role="user"] .chat-bubble-role-user,
+.chat-room-wrapper[data-imessage-private] .chat-msg-wrapper[data-role="user"] .chat-bubble-role-user *,
+.chat-room-wrapper[data-imessage-private] .chat-msg-wrapper[data-role="user"] [data-media-type="text"],
+.chat-room-wrapper[data-imessage-private] .chat-msg-wrapper[data-role="user"] [data-media-type="text"] *,
+.chat-room-wrapper[data-imessage-private] .chat-msg-wrapper[data-role="user"] .chat-markdown,
+.chat-room-wrapper[data-imessage-private] .chat-msg-wrapper[data-role="user"] .chat-markdown * {
+  --bubble-text-ink: #ffffff !important;
+  color: #ffffff !important;
+}
+
 /* 用户引用：深天蓝色气泡，白色文字 */
 .chat-room-wrapper[data-imessage-private] .chat-quote-message-user .chat-quote-reply {
   color: #ffffff !important;
