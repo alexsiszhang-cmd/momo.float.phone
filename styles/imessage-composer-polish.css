@@ -501,32 +501,24 @@
    ───────────────────────────────────────────────────────────── */
 
 /* 1. 框线恢复：对方所有玻璃气泡（含最后一条带 tail 消息）强制保留精致的 0.6px 高光描边 */
-.chat-room-wrapper[data-imessage-private][data-glass-bubbles] .chat-bubble-role-assistant:not(.chat-bubble-media) > .imessage-bubble-surface::after,
+/* conflict overlay cleaned */ .chat-room-wrapper-cleaned-unused,
 .chat-room-wrapper[data-imessage-private][data-glass-bubbles] .chat-msg-wrapper[data-imessage-tail] .chat-bubble-role-assistant:not(.chat-bubble-media) > .imessage-bubble-surface::after {
   content: "" !important;
   display: block !important;
   position: absolute !important;
   inset: 0 !important;
-  border: 0.6px solid var(--im26-local-bubble-outline, var(--im26-char-bubble-outline, rgba(227, 234, 242, 0.28))) !important;
-  border-radius: inherit !important;
-  pointer-events: none !important;
-  background: transparent !important;
-  -webkit-mask: none !important;
-  mask: none !important;
 }
 
 /* 2. 尾巴角标恢复：对方最后一条带 tail 消息稳健显现左下角 18x18 SVG 尖角尾巴 */
-.chat-room-wrapper[data-imessage-private][data-glass-bubbles] .chat-msg-wrapper[data-imessage-tail] .chat-bubble-role-assistant:not(.chat-bubble-media) > .imessage-bubble-surface {
-  border-radius: 20px 20px 20px 7px !important;
-}
+/* tail radius removed */
 
 .chat-room-wrapper[data-imessage-private][data-glass-bubbles] .chat-msg-wrapper[data-imessage-tail] .chat-bubble-role-assistant:not(.chat-bubble-media)::before {
   content: none !important;
   display: none !important;
 }
 
-.chat-room-wrapper-unused { display: none; } /* removed */
-.chat-room-wrapper-unused2 {
+/* double tail removed */
+.chat-room-wrapper-unused2 { display: none; } .chat-room-wrapper-unused3 {
   content: "" !important;
   display: block !important;
   position: absolute !important;
