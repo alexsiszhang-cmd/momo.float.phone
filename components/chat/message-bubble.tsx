@@ -52,6 +52,7 @@ interface MessageBubbleProps {
     displayContent?: string;
     defaultTranslationExpanded?: boolean;
     onFavoriteMedia?: (msg: ChatMessage) => void | Promise<void>;
+    isIMessage?: boolean;
 }
 
 /** 聊天插件自定义消息气泡：把裸 DOM 容器交给注册了该 kind 的插件渲染 */
@@ -95,7 +96,7 @@ function PluginKindBubble({ msg, kind }: { msg: ChatMessage; kind: string }) {
  * Renders a message bubble based on its mediaType.
  * Falls back to ReactMarkdown for plain text messages.
  */
-export const MessageBubble = memo(function MessageBubble({ msg, onUpdate, charName, userName, onSystemMessage, groupSize, onShowDetail, characterId, onMusicPlay, onActionSelect, onMeetingInviteAction, displayContent, defaultTranslationExpanded = false, onFavoriteMedia, quoteSource }: MessageBubbleProps) {
+export const MessageBubble = memo(function MessageBubble({ msg, onUpdate, charName, userName, onSystemMessage, groupSize, onShowDetail, characterId, onMusicPlay, onActionSelect, onMeetingInviteAction, displayContent, defaultTranslationExpanded = false, onFavoriteMedia, quoteSource, isIMessage }: MessageBubbleProps) {
     switch (msg.mediaType) {
         case "listening_invite":
             return <ListeningInviteCard msg={msg} />;
@@ -122,7 +123,7 @@ export const MessageBubble = memo(function MessageBubble({ msg, onUpdate, charNa
         case "dice":
             return <DiceBubble msg={msg} />;
         case "quote":
-            return <QuoteBubble msg={msg} displayContent={displayContent} defaultTranslationExpanded={defaultTranslationExpanded} onActionSelect={onActionSelect} quoteSource={quoteSource} />;
+            return <QuoteBubble msg={msg} displayContent={displayContent} defaultTranslationExpanded={defaultTranslationExpanded} onActionSelect={onActionSelect} quoteSource={quoteSource} isIMessage={isIMessage} />;
         case "music_share":
             return <MusicShareBubble msg={msg} onPlay={onMusicPlay} />;
         case "media_file":
@@ -174,6 +175,7 @@ export const MessageBubble = memo(function MessageBubble({ msg, onUpdate, charNa
     if (prev.characterId !== next.characterId) return false;
     if (prev.displayContent !== next.displayContent) return false;
     if (prev.defaultTranslationExpanded !== next.defaultTranslationExpanded) return false;
+    if (prev.isIMessage !== next.isIMessage) return false;
     return true;
 });
 
@@ -725,12 +727,14 @@ function QuoteBubble({
     defaultTranslationExpanded = false,
     onActionSelect,
     quoteSource,
+    isIMessage,
 }: {
     msg: ChatMessage;
     displayContent?: string;
     defaultTranslationExpanded?: boolean;
     onActionSelect?: (text: string) => void;
     quoteSource?: ChatMessage;
+    isIMessage?: boolean;
 }) {
     const rawPreview = quoteSource
         ? getQuotePreview(quoteSource)
@@ -752,11 +756,35 @@ function QuoteBubble({
         }
     };
 
+    if (isIMessage) {
+        return (
+            <div className={`chat-quote-message chat-quote-message-${role}`}>
+                <div className="chat-quote-connector" aria-hidden="true" />
+                <div
+                    className="chat-quote-preview cursor-pointer select-none"
+                    onClick={handleJumpToSource}
+                    role="button"
+                    tabIndex={0}
+                    title="点击定位到原消息"
+                >
+                    {previewText}
+                </div>
+                <div className="chat-quote-reply">
+                    <span className="imessage-bubble-surface" aria-hidden="true" />
+                    <TextBubble
+                        content={displayContent ?? msg.content}
+                        onActionSelect={onActionSelect}
+                        defaultTranslationExpanded={defaultTranslationExpanded}
+                    />
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className={`chat-quote-message chat-quote-message-${role}`}>
-            <div className="chat-quote-connector" aria-hidden="true" />
+        <div className="chat-quote-classic flex flex-col gap-1.5 min-w-0">
             <div
-                className="chat-quote-preview cursor-pointer select-none"
+                className="chat-quote-classic-preview cursor-pointer select-none"
                 onClick={handleJumpToSource}
                 role="button"
                 tabIndex={0}
@@ -764,8 +792,7 @@ function QuoteBubble({
             >
                 {previewText}
             </div>
-            <div className="chat-quote-reply">
-                <span className="imessage-bubble-surface" aria-hidden="true" />
+            <div className="chat-quote-classic-body">
                 <TextBubble
                     content={displayContent ?? msg.content}
                     onActionSelect={onActionSelect}

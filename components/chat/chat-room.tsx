@@ -6737,6 +6737,7 @@ export function ChatRoom({ session, onBack, onDeleted, onUserMessageSent, contac
                                                 onActionSelect={(text) => chatTextInputRef.current?.appendText(text)}
                                                 onMeetingInviteAction={handleMeetingInviteAction}
                                                 defaultTranslationExpanded={session.collapseBilingualTranslation !== false ? false : true}
+                                                isIMessage={isIMessage}
                                             />
                                             {renderMsg.mediaData?.tapback && (
                                                 <IMessageTapbackBadge

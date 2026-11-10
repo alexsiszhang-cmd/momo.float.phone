@@ -2998,6 +2998,56 @@
   border-bottom: 1px solid var(--c-panel-border);
 }
 
+/* ── 经典模式气泡内嵌引用回复 ── */
+.chat-quote-classic {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.chat-quote-classic-preview {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 5px 9px;
+  border-radius: 6px;
+  font-size: calc(11.8px * var(--app-text-scale, 1));
+  line-height: 1.4;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  border-left: 3px solid currentColor;
+  opacity: 0.85;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.chat-quote-classic-preview:hover,
+.chat-quote-classic-preview:active {
+  opacity: 1;
+}
+
+/* 用户气泡（右侧）中的引用条微调 */
+.chat-bubble-role-user .chat-quote-classic-preview {
+  background: rgba(0, 0, 0, 0.12);
+  border-left-color: rgba(255, 255, 255, 0.75);
+}
+
+/* 角色气泡（左侧）中的引用条微调 */
+.chat-bubble-role-assistant .chat-quote-classic-preview {
+  background: rgba(0, 0, 0, 0.05);
+  border-left-color: var(--c-icon-active, #246bfd);
+}
+
+.chat-quote-classic-body {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 /* ── Voice call group left border ── */
 .chat-vc-group-border {
   display: flex;
