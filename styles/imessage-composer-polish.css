@@ -353,8 +353,12 @@
 
 /* 用户引用：深天蓝色气泡，白色文字 */
 .chat-room-wrapper[data-imessage-private] .chat-quote-message-user .chat-quote-reply {
-  color: #ffffff;
-  background: var(--im26-blue, #38acfc);
+  color: #ffffff !important;
+  background: var(--im26-blue, #38acfc) !important;
+}
+
+.chat-room-wrapper[data-imessage-private] .chat-quote-message-user .chat-quote-reply * {
+  color: #ffffff !important;
 }
 
 /* 角色引用：浅灰色气泡，深黑文字 */
