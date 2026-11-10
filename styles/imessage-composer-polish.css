@@ -294,15 +294,16 @@
   box-sizing: border-box !important;
 }
 
+/* 引用消息内部：向连线侧（用户靠左，角色靠右）统一对齐，确保任意字数下连线两端与气泡完美贴合且绝不悬空脱节 */
 .chat-room-wrapper[data-imessage-private] .chat-quote-message-user {
-  align-items: flex-end !important;
+  align-items: flex-start !important;
   align-self: flex-end !important;
   margin-left: auto !important;
   margin-right: 0 !important;
 }
 
 .chat-room-wrapper[data-imessage-private] .chat-quote-message-assistant {
-  align-items: flex-start !important;
+  align-items: flex-end !important;
   align-self: flex-start !important;
   margin-right: auto !important;
   margin-left: 0 !important;
@@ -380,6 +381,15 @@
   box-shadow: 0 2px 6px rgba(0,46,98,.065) !important;
 }
 
+.chat-room-wrapper[data-imessage-private][data-glass-bubbles] .chat-quote-message-user .chat-quote-reply::after {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  border: 0.6px solid rgba(227, 234, 242, 0.28) !important;
+  border-radius: inherit !important;
+  pointer-events: none !important;
+}
+
 .chat-room-wrapper[data-imessage-private][data-glass-bubbles] .chat-quote-message-assistant .chat-quote-reply {
   color: var(--im26-local-bubble-ink, #f8fafc) !important;
 }
@@ -407,7 +417,7 @@
 .chat-room-wrapper[data-imessage-private] .chat-quote-connector {
   position: absolute !important;
   top: 14px !important;
-  bottom: 18px !important;
+  bottom: 20px !important;
   z-index: 1 !important;
   width: 22px !important;
   border-color: rgba(60, 60, 67, 0.42) !important;
