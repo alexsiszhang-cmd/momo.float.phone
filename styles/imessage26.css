@@ -3323,7 +3323,7 @@
   border-radius: inherit;
   pointer-events: none;
 }
-@supports (display: none) {
+@supports (-webkit-mask-box-image: url("/chat-bubble-contour-left.svg") 20 20 18 25 stretch stretch) {
   .chat-room-wrapper[data-imessage-private][data-glass-bubbles] .chat-msg-wrapper[data-imessage-tail] :is(
     .chat-bubble-role-assistant[data-media-type="text"], .chat-bubble-role-assistant[data-media-type="audio"],
     .chat-quote-message-assistant .chat-quote-reply

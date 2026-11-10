@@ -521,6 +521,12 @@
 }
 
 .chat-room-wrapper[data-imessage-private][data-glass-bubbles] .chat-msg-wrapper[data-imessage-tail] .chat-bubble-role-assistant:not(.chat-bubble-media)::before {
+  content: none !important;
+  display: none !important;
+}
+
+.chat-room-wrapper-unused { display: none; } /* removed */
+.chat-room-wrapper-unused2 {
   content: "" !important;
   display: block !important;
   position: absolute !important;
