@@ -99,7 +99,8 @@
 .chat-room-wrapper[data-imessage-private] .imessage-quote-compose-bubble[data-role="user"] > .imessage-bubble-surface::before { left:auto; right:7px; transform:none; }
 /* Composite an opaque body and tail before applying alpha once. */
 .imessage-bubble-surface { display:none; }
-.chat-room-wrapper[data-imessage-private] :is(.chat-bubble-role-user,.chat-bubble-role-assistant):has(> .imessage-bubble-surface) { background:transparent !important; isolation:isolate; }
+/* 只有在玻璃拟态模式下，外层才转透明并由内部 surface 承载毛玻璃；经典模式放行外层背景，让自定义美化直接生效 */
+.chat-room-wrapper[data-imessage-private][data-glass-bubbles] :is(.chat-bubble-role-user,.chat-bubble-role-assistant):has(> .imessage-bubble-surface) { background:transparent !important; isolation:isolate; }
 .chat-room-wrapper[data-imessage-private] :is(.chat-bubble-role-user,.chat-bubble-role-assistant):has(> .imessage-bubble-surface)::before { content:none !important; }
 .chat-room-wrapper[data-imessage-private] .imessage-bubble-surface {
  display:block; position:absolute; inset:0; border-radius:inherit; z-index:-1; pointer-events:none;
@@ -107,24 +108,19 @@
  opacity:calc(var(--bubble-surface-opacity,1) * (100% - var(--chat-edge-lighten,0%) * 7));
 }
 /* 经典模式（无玻璃拟态）：用户气泡强制锁定经典天蓝，角色气泡锁定浅灰，绝不被白色壁纸算法冲成纯白 */
+/* 经典模式（无玻璃拟态）：内层 surface 透明放行并继承气泡本体背景，完美支持各种自定义 CSS 美化包自由发挥 */
 .chat-room-wrapper[data-imessage-private]:not([data-glass-bubbles]) .chat-bubble-role-user > .imessage-bubble-surface,
-.chat-room-wrapper[data-imessage-private]:not([data-glass-bubbles]) .chat-quote-message-user .chat-quote-reply > .imessage-bubble-surface {
-  background: var(--im26-blue, #38acfc) !important;
-  opacity: 1 !important;
-}
-
+.chat-room-wrapper[data-imessage-private]:not([data-glass-bubbles]) .chat-quote-message-user .chat-quote-reply > .imessage-bubble-surface,
 .chat-room-wrapper[data-imessage-private]:not([data-glass-bubbles]) .chat-bubble-role-assistant > .imessage-bubble-surface,
 .chat-room-wrapper[data-imessage-private]:not([data-glass-bubbles]) .chat-quote-message-assistant .chat-quote-reply > .imessage-bubble-surface {
-  background: var(--im26-incoming, #e9e9eb) !important;
+  background: inherit !important;
   opacity: 1 !important;
 }
 
 /* 基础文字安全屏障：无论任何环境，用户发出的蓝色气泡内部文字永远锁定纯白，绝不随对比度采样变黑 */
 .chat-room-wrapper[data-imessage-private] .chat-bubble-role-user,
-.chat-room-wrapper[data-imessage-private] .chat-bubble-role-user *,
-.chat-room-wrapper[data-imessage-private] .chat-quote-message-user .chat-quote-reply,
-.chat-room-wrapper[data-imessage-private] .chat-quote-message-user .chat-quote-reply * {
-  color: #ffffff !important;
+.chat-room-wrapper[data-imessage-private] .chat-quote-message-user .chat-quote-reply {
+  color: #ffffff;
 }
 
 .chat-room-wrapper[data-imessage-private] .imessage-bubble-surface::before {
