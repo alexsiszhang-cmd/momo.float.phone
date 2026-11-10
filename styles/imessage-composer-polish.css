@@ -170,7 +170,7 @@
   color: rgba(255, 255, 255, 0.65) !important;
 }
 
-/* ── 核心修复 4：主题栏表情与贴纸按钮（表情包入口隐形暗门：视觉完全隐藏，保留占位与点击能力，内部表情包面板不隐藏） ── */
+/* ── 核心修复 4：主题栏表情与贴纸双入口隐形暗门（视觉完全隐藏，保留占位与点击暗门，内部面板不隐藏） ── */
 .chat-room-wrapper[data-imessage-private] .imessage-composer-shortcuts {
   display: flex !important;
   align-items: center !important;
@@ -180,6 +180,7 @@
   margin-right: 8px !important;
 }
 
+/* 两个入口（Emoji 表情与贴纸表情包）均完全透明隐藏，但保留原本 28x28px 的物理占位与点击交互能力 */
 .chat-room-wrapper[data-imessage-private] .imessage-composer-shortcut {
   display: inline-flex !important;
   align-items: center !important;
@@ -187,62 +188,48 @@
   width: 28px !important;
   height: 28px !important;
   border-radius: 8px !important;
-  color: #48484a !important;
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  color: transparent !important;
   background: transparent !important;
-  opacity: 0.85 !important;
+  opacity: 0 !important;
   cursor: pointer !important;
   pointer-events: auto !important;
-  transition: all 0.15s ease !important;
+  transition: none !important;
+  -webkit-tap-highlight-color: transparent !important;
 }
 
 .chat-room-wrapper[data-imessage-private] .imessage-composer-shortcut:hover,
+.chat-room-wrapper[data-imessage-private] .imessage-composer-shortcut:active,
 .chat-room-wrapper[data-imessage-private] .imessage-composer-shortcut[data-active] {
-  color: #007aff !important;
-  opacity: 1 !important;
-  background: rgba(0, 122, 255, 0.12) !important;
+  color: transparent !important;
+  opacity: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .chat-room-wrapper[data-imessage-private] .imessage-composer-shortcut svg {
   width: 19px !important;
   height: 19px !important;
-  stroke: currentColor !important;
+  stroke: transparent !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
 }
 
 .chat-room-wrapper[data-imessage-private]:is([data-chat-dark], [data-dark-wallpaper]) .imessage-composer-shortcut {
-  color: #d1d1d6 !important;
+  color: transparent !important;
+  opacity: 0 !important;
+  background: transparent !important;
 }
 
 .chat-room-wrapper[data-imessage-private]:is([data-chat-dark], [data-dark-wallpaper]) .imessage-composer-shortcut:hover,
+.chat-room-wrapper[data-imessage-private]:is([data-chat-dark], [data-dark-wallpaper]) .imessage-composer-shortcut:active,
 .chat-room-wrapper[data-imessage-private]:is([data-chat-dark], [data-dark-wallpaper]) .imessage-composer-shortcut[data-active] {
-  color: #0a84ff !important;
-  background: rgba(10, 132, 255, 0.18) !important;
-}
-
-/* 表情包入口（贴纸）隐形暗门：视觉完全透明隐藏，原位置仍可点击呼出表情包面板，内部表情包面板不隐藏 */
-.chat-room-wrapper[data-imessage-private] .imessage-composer-shortcut.imessage-composer-sticker {
-  opacity: 0 !important;
   color: transparent !important;
-  background: transparent !important;
-  border: 0 !important;
-  outline: none !important;
-  box-shadow: none !important;
-  pointer-events: auto !important;
-  cursor: pointer !important;
-  -webkit-tap-highlight-color: transparent !important;
-}
-
-.chat-room-wrapper[data-imessage-private] .imessage-composer-shortcut.imessage-composer-sticker:hover,
-.chat-room-wrapper[data-imessage-private] .imessage-composer-shortcut.imessage-composer-sticker:active,
-.chat-room-wrapper[data-imessage-private] .imessage-composer-shortcut.imessage-composer-sticker[data-active] {
   opacity: 0 !important;
-  color: transparent !important;
   background: transparent !important;
   box-shadow: none !important;
-}
-
-.chat-room-wrapper[data-imessage-private] .imessage-composer-shortcut.imessage-composer-sticker svg {
-  opacity: 0 !important;
-  visibility: hidden !important;
 }
 
 /* ── 核心修复 5：表情包面板与贴纸面板浮动毛玻璃容器 ── */
