@@ -345,6 +345,12 @@
   word-break: break-word !important;
 }
 
+/* 引用回复主体气泡绝对禁止生成独立尾巴小尖角（角标） */
+.chat-room-wrapper[data-imessage-private] .chat-quote-reply::before {
+  content: none !important;
+  display: none !important;
+}
+
 /* 用户引用：深天蓝色气泡，白色文字 */
 .chat-room-wrapper[data-imessage-private] .chat-quote-message-user .chat-quote-reply {
   color: #ffffff !important;
@@ -374,6 +380,12 @@
 .chat-room-wrapper[data-imessage-private][data-glass-bubbles] .chat-quote-message-user .chat-quote-reply > .imessage-bubble-surface {
   opacity: 1 !important;
   border: 0 !important;
+  inset: 0 !important;
+  border-radius: 20px !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+  -webkit-mask-box-image: none !important;
+  mask-border: none !important;
   background: linear-gradient(155deg, rgba(255,255,255,.14) 0%, rgba(255,255,255,.035) 20%, transparent 43%),
     linear-gradient(rgba(5,113,221,.88) 0 0) !important;
   -webkit-backdrop-filter: blur(1.5px) saturate(154%) contrast(1.09) !important;
@@ -397,6 +409,12 @@
 .chat-room-wrapper[data-imessage-private][data-glass-bubbles] .chat-quote-message-assistant .chat-quote-reply > .imessage-bubble-surface {
   opacity: 1 !important;
   border: 0 !important;
+  inset: 0 !important;
+  border-radius: 20px !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+  -webkit-mask-box-image: none !important;
+  mask-border: none !important;
   background: var(--im26-char-bubble-fill, rgba(66,72,81,.38)) !important;
   -webkit-backdrop-filter: blur(3px) saturate(108%) contrast(1.1) !important;
   backdrop-filter: blur(3px) saturate(108%) contrast(1.1) !important;

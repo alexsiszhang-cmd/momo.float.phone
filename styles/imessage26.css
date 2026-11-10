@@ -1400,7 +1400,7 @@
    original tail are composited inside one alpha mask, then the glass material
    is painted once, so their overlap cannot darken or double the color. */
 .chat-room-wrapper[data-imessage-private][data-glass-bubbles] .chat-msg-wrapper[data-imessage-tail]
-  :is(.chat-bubble-role-user[data-media-type="text"], .chat-bubble-role-assistant[data-media-type="text"], .chat-bubble-role-user[data-media-type="audio"], .chat-bubble-role-assistant[data-media-type="audio"], .chat-quote-reply) > .imessage-bubble-surface {
+  :is(.chat-bubble-role-user[data-media-type="text"], .chat-bubble-role-assistant[data-media-type="text"], .chat-bubble-role-user[data-media-type="audio"], .chat-bubble-role-assistant[data-media-type="audio"]) > .imessage-bubble-surface {
   inset: 0 0 -7px;
   border: 0;
   filter: none;
