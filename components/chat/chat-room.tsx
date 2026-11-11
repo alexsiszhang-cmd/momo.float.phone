@@ -6009,7 +6009,7 @@ export function ChatRoom({ session, onBack, onDeleted, onUserMessageSent, contac
                         <ChatUnreadPill sessionId={session.id} onBack={onBack} />
                         <button className="imessage-contact-card" type="button" onClick={() => setShowSettings(true)} aria-label={session.isGroup ? "群聊设置" : "联系人详情"}>
                             <span className="imessage-contact-avatar">
-                                {character?.avatar ? <img src={character.avatar} alt="" /> : <ChatFallbackAvatar />}
+                                {effectiveCharacterAvatar ? <img src={effectiveCharacterAvatar} alt="" /> : <ChatFallbackAvatar />}
                             </span>
                             <span className="imessage-contact-name">
                                 {session.isGroup ? (session.groupName || "群聊") : (session.alias || character?.name || `User_${session.contactId.slice(-4)}`)}
