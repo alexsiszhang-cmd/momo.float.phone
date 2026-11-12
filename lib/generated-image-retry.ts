@@ -1,6 +1,7 @@
 import { saveChatImageToIndexedDB } from "./chat-asset-storage";
 import { syncChatGeneratedImagePromptText, updateChatMessage, type ChatMessage } from "./chat-storage";
 import { generatedImageFilename, generateImageFromConfiguredApi } from "./image-generation-service";
+import { resolveMemoriesPhotoForUse } from "./memories-photo-resolver";
 import { updateMomentPost } from "./moments-storage";
 import type { MomentPost } from "./moments-types";
 
@@ -77,6 +78,43 @@ export async function generateAndApplyChatGeneratedImage(
     }
 
     try {
+        // 先尝试从用户自定义 APP「Memories」相册中按语义匹配已有照片
+        const memoriesMatch = await resolveMemoriesPhotoForUse({
+            characterId,
+            description,
+        }).catch((err) => {
+            console.warn("[Memories] 检索照片失败，回退生图:", err);
+            return null;
+        });
+
+        if (memoriesMatch) {
+            const fileName = generatedImageFilename(description, "image/png");
+            const previousData = message.mediaData ?? {};
+            const nextData: ChatMessage["mediaData"] = {
+                ...previousData,
+                label: description,
+                fileType: "image",
+                fileName,
+                useReferenceImage: effectiveUseReference,
+                useUserReferenceImage: effectiveUseUserReference,
+                imageGenerationMediaRef: memoriesMatch.photo.mediaRef || undefined,
+                imageGenerationPrompt: memoriesMatch.photo.prompt || description,
+                imageGenerationUsedReference: false,
+                imageGenerationStatus: "generated",
+                imageGenerationError: undefined,
+            };
+            const updated = updateChatMessage(message.id, {
+                content: fileName,
+                mediaType: "media_file",
+                mediaUrl: memoriesMatch.imageUrl,
+                mediaData: nextData,
+            });
+            if (updated) {
+                dispatchChatMessagesUpdated(updated.sessionId, updated);
+                return updated;
+            }
+        }
+
         const generated = await generateImageFromConfiguredApi({
             description,
             characterId,
