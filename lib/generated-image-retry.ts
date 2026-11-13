@@ -1,6 +1,7 @@
 import { saveChatImageToIndexedDB } from "./chat-asset-storage";
 import { syncChatGeneratedImagePromptText, updateChatMessage, type ChatMessage } from "./chat-storage";
 import { generatedImageFilename, generateImageFromConfiguredApi } from "./image-generation-service";
+import { loadImageGenerationSettings } from "./settings-storage";
 import { resolveMemoriesPhotoForUse } from "./memories-photo-resolver";
 import { updateMomentPost } from "./moments-storage";
 import type { MomentPost } from "./moments-types";
@@ -113,6 +114,11 @@ export async function generateAndApplyChatGeneratedImage(
                 dispatchChatMessagesUpdated(updated.sessionId, updated);
                 return updated;
             }
+        }
+
+        const imageSettings = loadImageGenerationSettings();
+        if (imageSettings.albumOnlyMode === true) {
+            throw new Error("纯用相册模式：未在相册中找到匹配照片，已拦截生图 API");
         }
 
         const generated = await generateImageFromConfiguredApi({
