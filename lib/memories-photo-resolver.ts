@@ -31,6 +31,7 @@ export type MemoriesPhotoMatchResult = {
 };
 
 export function getMemoriesAppId(): string | null {
+  if (typeof window === "undefined") return null;
   const apps = loadInstalledCustomApps();
   const found = apps.find((app) => {
     const name = (app.name || "").trim().toLowerCase();
