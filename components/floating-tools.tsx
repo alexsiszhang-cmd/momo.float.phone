@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent } from "react";
-import { ArrowLeft, BookOpen, Check, Code2, FileText, FlaskConical, ImageIcon, Loader2, MessageCircle, RefreshCw, Wrench, X } from "lucide-react";
+import { ArrowLeft, BookOpen, Camera, Check, Code2, FileText, FlaskConical, ImageIcon, Loader2, MessageCircle, RefreshCw, Wrench, X } from "lucide-react";
 import { CHAT_APP_SETTINGS_UPDATED_EVENT, loadChatAppSettings, saveChatAppSettings, type ChatAppSettings, type ChatSession } from "@/lib/chat-storage";
 import { getFloatingBindingSlot, isCombinedToolsEnabled, updateFloatingBinding, type FloatingBindingTarget } from "@/lib/floating-tools";
 import { getFloatingPageContext, subscribeFloatingPageContext } from "@/lib/floating-tools-context";
@@ -367,6 +367,13 @@ export function FloatingTools({ activeApp, chatSession }: { activeApp: string | 
         }
     }, [activeImageId, activeImageSettings, hasImageSelection, imagePreview]);
 
+    const toggleAlbumOnlyMode = useCallback(() => {
+        const cur = loadImageGenerationSettings();
+        const next = { ...cur, albumOnlyMode: !cur.albumOnlyMode };
+        saveImageGenerationSettings(next);
+        setImageSettings(next);
+    }, []);
+
     function update(patch: Partial<BindingSlot>) {
         saveBindingConfig(updateFloatingBinding(loadBindingConfig(), target, patch));
     }
@@ -516,6 +523,20 @@ export function FloatingTools({ activeApp, chatSession }: { activeApp: string | 
                                 </div>
                             )}
                         </div>}
+                        <button
+                            type="button"
+                            className={styles.option}
+                            aria-pressed={Boolean(effectiveImageSettings.albumOnlyMode)}
+                            onClick={toggleAlbumOnlyMode}
+                            style={{ marginTop: 8 }}
+                        >
+                            <span>
+                                <Camera size={15} style={{ verticalAlign: "middle", marginRight: 6 }} />
+                                纯用相册模式
+                                <small>{effectiveImageSettings.albumOnlyMode ? "仅使用相册匹配，拦截 API 消耗" : "未命中相册时自动回退生图 API"}</small>
+                            </span>
+                            {effectiveImageSettings.albumOnlyMode && <Check size={17} />}
+                        </button>
                     </>}
                 </div>}
                 {view === "books" && <div className={styles.detail}>
