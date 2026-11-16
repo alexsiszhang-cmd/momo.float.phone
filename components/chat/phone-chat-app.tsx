@@ -13,6 +13,8 @@ import type { MomentPost } from "@/lib/moments-types";
 import { notifyMascotPageContext } from "@/lib/mascot-events";
 import { loadCharacters } from "@/lib/character-storage";
 import { SessionCustomCSS } from "@/components/ui/session-custom-css";
+import { CHAT_APPEARANCE_OPEN, loadChatNightMode, saveChatNightMode } from "@/lib/chat-appearance";
+import "@/styles/chat-night.css";
 import { kvGet } from "@/lib/kv-db";
 import { formatXiaohongshuShareForPrompt, type ChatSharePayload } from "@/lib/chat-share";
 import { CHAT_OPEN_SESSION_EVENT, CHAT_OPEN_ADD_CONTACT_EVENT } from "@/lib/chat-notification-events";
@@ -89,6 +91,16 @@ export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSession
     const [visitedSessions, setVisitedSessions] = useState<Map<string, ChatSession>>(new Map());
     const [dbReady, setDbReady] = useState(false);
     const [hideTabBar, setHideTabBar] = useState(false);
+    const [nightMode, setNightMode] = useState(loadChatNightMode);
+    const [appearanceOpen, setAppearanceOpen] = useState(false);
+
+    useEffect(() => {
+        const open = () => setAppearanceOpen(true);
+        const close = (event: KeyboardEvent) => { if (event.key === "Escape") setAppearanceOpen(false); };
+        window.addEventListener(CHAT_APPEARANCE_OPEN, open);
+        window.addEventListener("keydown", close);
+        return () => { window.removeEventListener(CHAT_APPEARANCE_OPEN, open); window.removeEventListener("keydown", close); };
+    }, []);
 
     // Hydrate IndexedDB → in-memory caches on mount
     useEffect(() => {
@@ -319,12 +331,30 @@ export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSession
 
     return (
         <div
+            data-chat-theme={nightMode ? "dark" : "light"}
             className="chat-app absolute inset-0 flex flex-col overflow-hidden z-10"
             {...(activeSession || activeMascot ? { "data-room-active": "" } : {})}
             {...(hideTabBar || contactProfileOpen ? { "data-tabbar-hidden": "" } : {})}
         >
             {/* Homepage appearance CSS is the lowest chat styling layer. */}
             {chatAppCSS && <SessionCustomCSS css={chatAppCSS} scope=".chat-app" />}
+            {appearanceOpen && (
+                <div className="chat-appearance-scrim" onClick={() => setAppearanceOpen(false)}>
+                    <section role="dialog" aria-modal="true" aria-labelledby="chat-appearance-title" className="chat-appearance-dialog" onClick={event => event.stopPropagation()}>
+                        <h2 id="chat-appearance-title">{nightMode ? "切换日间模式" : "切换夜间模式"}</h2>
+                        <div className="chat-appearance-actions">
+                            <button type="button" autoFocus onClick={() => {
+                                const next = !nightMode;
+                                saveChatNightMode(next);
+                                setNightMode(next);
+                                window.dispatchEvent(new Event("chat-night-mode-updated"));
+                                setAppearanceOpen(false);
+                            }}>确认</button>
+                            <button type="button" onClick={() => setAppearanceOpen(false)}>取消</button>
+                        </div>
+                    </section>
+                </div>
+            )}
             {/* The Main Content Area */}
             <div className="chat-main-content relative flex-1 flex flex-col overflow-hidden" {...(activeSession || activeMascot ? { "data-covered-by-room": "" } : {})}>
                 {activeTab === "messages" && <ChatMessageList onCloseApp={onClose} activeSession={activeSession} onSelectSession={(session) => { setActiveMascot(false); setActiveSession(session); }} onSelectMascot={handleSelectMascot} />}

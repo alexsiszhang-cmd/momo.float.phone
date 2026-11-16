@@ -1,15 +1,20 @@
 "use client";
 import { useEffect, useState } from "react";
+import { loadChatNightMode, CHAT_APPEARANCE_OPEN } from "@/lib/chat-appearance";
 
 /** Chat-only appearance, independent of the desktop theme. Never uploads images. */
 export function useChatAppearance(background: string | null) {
-    const [dark, setDark] = useState(false);
+    const [dark, setDark] = useState(loadChatNightMode);
     const [sample, setSample] = useState({ src: "", dark: false });
     useEffect(() => {
-        const media = window.matchMedia("(prefers-color-scheme: dark)");
-        const update = () => setDark(media.matches);
-        update(); media.addEventListener("change", update);
-        return () => media.removeEventListener("change", update);
+        const update = () => setDark(loadChatNightMode());
+        update();
+        window.addEventListener("chat-night-mode-updated", update);
+        window.addEventListener(CHAT_APPEARANCE_OPEN, update);
+        return () => {
+            window.removeEventListener("chat-night-mode-updated", update);
+            window.removeEventListener(CHAT_APPEARANCE_OPEN, update);
+        };
     }, []);
     useEffect(() => {
         if (!background) return;
