@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { BellRing, ChevronRight, Code, Image as ImageIcon, LayoutPanelTop, Play, RotateCcw, Sparkles, User, X } from "lucide-react";
+import { BellRing, ChevronRight, Code, Image as ImageIcon, LayoutPanelTop, Moon, Play, RotateCcw, Sparkles, User, X } from "lucide-react";
+import { openChatAppearance } from "@/lib/chat-appearance";
 import { kvSet } from "@/lib/kv-db";
 import { PageShell } from "@/components/ui/page-shell";
 import CSSSchemeBar from "@/components/ui/css-scheme-picker";
@@ -439,6 +440,22 @@ export function GlobalChatInfoSettings({ onBack }: { onBack: () => void }) {
                                 onClick={() => handleSwitchBeautyPreset(globalBeautyPreset === "glass" ? "classic" : "glass")}
                             >
                                 {globalBeautyPreset === "glass" ? "Liquid Glass 玻璃" : "经典模式"}
+                            </button>
+                        </div>
+                    </div>
+                    <div className="menu-item">
+                        <Moon size={20} className="text-[var(--c-icon)]" />
+                        <div className="menu-label-group">
+                            <span className="menu-label">日夜间模式</span>
+                            <span className="menu-desc">切换消息 App 日间与夜间深色主题外观</span>
+                        </div>
+                        <div className="menu-right">
+                            <button
+                                type="button"
+                                className="ui-btn ui-btn-ghost h-8 px-3 text-xs"
+                                onClick={openChatAppearance}
+                            >
+                                切换日夜模式
                             </button>
                         </div>
                     </div>
