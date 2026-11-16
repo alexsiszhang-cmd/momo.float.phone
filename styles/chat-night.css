@@ -27,6 +27,19 @@
   --chat-text-secondary: #a3a8b0;
   --chat-border-color: #303338;
 
+  --c-header-bg: #1e2024 !important;
+  --c-page-body-bg: #191b1e !important;
+  --c-card: #24272b !important;
+  --c-card-border: #303338 !important;
+  --c-panel: #24272b !important;
+  --c-panel-border: #34383e !important;
+  --c-text-title: #dbdde1 !important;
+  --c-text: #b4b8bf !important;
+  --c-icon: #93979f !important;
+  --c-icon-active: #e2e4e8 !important;
+  --c-input: #292d32 !important;
+  --c-input-border: #353a42 !important;
+
   --chat-bubble-self-bg: #34454a;
   --chat-bubble-self-text: #dbdde1;
   --chat-bubble-other-bg: #292d32;
@@ -36,8 +49,37 @@
   color: var(--chat-text-primary);
 }
 
-/* Base surface styling in Night Mode (Un-scoped, allowing CustomCSS overrides) */
-.chat-app[data-chat-theme="dark"] :is(.page-shell, .page-body, .chat-main-content, .kkt-list-page, .user-profile-page-root, .moments-feed-list) {
+/* ==========================================================================
+   1. 主页 (Tab: me / UserProfilePanel) 夜间模式深色卡片适配
+   ========================================================================== */
+.chat-app[data-chat-theme="dark"] .user-profile-page-root {
+  background-color: #191b1e !important;
+  color: #dbdde1 !important;
+}
+
+.chat-app[data-chat-theme="dark"] .user-profile-page-root::before {
+  display: none !important;
+}
+
+.chat-app[data-chat-theme="dark"] .user-profile-page-root :is(.bg-white, .bg-white\/70, [class*="bg-white"]) {
+  background-color: #24272b !important;
+  color: #dbdde1 !important;
+}
+
+.chat-app[data-chat-theme="dark"] .user-profile-page-root button[style*="background"] {
+  background: #24272b !important;
+  color: #dbdde1 !important;
+  border-color: #303338 !important;
+}
+
+/* 移除通用 White 浅色背景残留 */
+.chat-app[data-chat-theme="dark"] :is(.kkt-search-bar, .chat-search-bar, .menu-card, .menu-section, .modal-dialog, .modal-content) {
+  background-color: #24272b !important;
+  color: #dbdde1 !important;
+  border-color: #303338 !important;
+}
+
+.chat-app[data-chat-theme="dark"] :is(.page-shell, .page-body, .chat-main-content, .kkt-list-page) {
   background-color: var(--chat-bg-base);
   color: var(--chat-text-primary);
 }
@@ -51,6 +93,42 @@
   color: var(--chat-text-primary);
   background-color: #292d32;
   border-color: #353a42;
+}
+
+/* ==========================================================================
+   2. 消息列表页面 & 联系人页面文字颜色适配 (不包含聊天室)
+   ========================================================================== */
+.chat-app[data-chat-theme="dark"] :is(.chat-message-list, .kkt-list-page, .chat-contacts-list) {
+  background-color: #191b1e !important;
+  color: #dbdde1 !important;
+}
+
+.chat-app[data-chat-theme="dark"] :is(.chat-message-list, .kkt-list-page, .chat-contacts-list) :is(h1, h2, h3, .page-title, .kkt-list-title, .kkt-contact-name, .kkt-session-name, .chat-session-name, .kkt-own-text strong, [class*="font-semibold"]) {
+  color: #dbdde1 !important;
+}
+
+.chat-app[data-chat-theme="dark"] :is(.chat-message-list, .kkt-list-page, .chat-contacts-list) :is(.kkt-contact-status, .kkt-session-preview, .kkt-session-time, .chat-session-preview, .chat-session-time, .kkt-own-text span, p) {
+  color: #a3a8b0 !important;
+}
+
+/* ==========================================================================
+   3. 朋友圈动态页面 (MomentsFeed) 文字颜色适配 (不包含聊天室)
+   ========================================================================== */
+.chat-app[data-chat-theme="dark"] :is(.moments-feed-page, .moments-feed-list, .moments-post) {
+  background-color: #191b1e !important;
+  color: #dbdde1 !important;
+}
+
+.chat-app[data-chat-theme="dark"] :is(.moments-feed-page, .moments-feed-list, .moments-post) :is(.moments-post-author, .moments-post-content, .moments-post-text, .moments-comment-author, .moments-comment-text, .moments-comment-content, [class*="text-gray-900"], [class*="text-slate-900"], [class*="text-black"]) {
+  color: #dbdde1 !important;
+}
+
+.chat-app[data-chat-theme="dark"] :is(.moments-feed-page, .moments-feed-list, .moments-post) :is(.moments-post-time, .moments-comment-list, .moments-comments, [class*="text-gray-500"], [class*="text-slate-500"], [class*="text-gray-600"]) {
+  color: #a3a8b0 !important;
+}
+
+.chat-app[data-chat-theme="dark"] .moments-feed-page .moments-profile-hero {
+  background-color: #191b1e !important;
 }
 
 /* Classic Mode Default Message Bubbles in Night Mode */
