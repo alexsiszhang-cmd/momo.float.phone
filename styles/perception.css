@@ -16,21 +16,20 @@
   display: flex;
   flex-direction: column;
   color: var(--c-text-title);
-  padding: 16px 20px 40px;
+  padding: 0 16px 24px;
   box-sizing: border-box;
-  gap: 16px;
 }
 
 /* ── 状态总览卡 ── */
 .per-hero {
-  margin: 0;
-  padding: 20px 22px;
-  border-radius: 24px;
-  background: #ffffff;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  margin: 0 0 12px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: var(--c-panel);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .per-shell > .page-menu {
@@ -172,30 +171,23 @@
 .per-cap-toggle { flex: 0 0 auto; align-self: center; }
 
 /* ── 参数区 ── */
-.per-shell .menu-group {
-  border-radius: 24px;
-  background: #ffffff;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
-  overflow: hidden;
-}
-
 .per-field {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px 18px;
+  padding: 12px 16px;
 }
 .per-field + .per-field {
-  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  border-top: 1px solid color-mix(in srgb, var(--c-card-border) 20%, transparent);
 }
 .per-field-body { flex: 1; min-width: 0; }
 .per-field-label {
-  font-size: calc(13.5px * var(--app-text-scale, 1));
-  font-weight: 600;
+  font-size: calc(13px * var(--app-text-scale, 1));
+  font-weight: 500;
 }
 .per-field-hint {
   margin-top: 3px;
-  font-size: calc(11px * var(--app-text-scale, 1));
+  font-size: calc(10.5px * var(--app-text-scale, 1));
   line-height: 1.5;
   color: var(--c-text);
 }
@@ -203,7 +195,7 @@
   width: 84px;
   flex: 0 0 auto;
   padding: 8px 10px;
-  border-radius: 12px;
+  border-radius: 10px;
   border: 1px solid var(--c-input-border);
   background: var(--c-input);
   color: var(--c-text-title);
