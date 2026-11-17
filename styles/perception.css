@@ -16,27 +16,25 @@
   display: flex;
   flex-direction: column;
   color: var(--c-text-title);
-  padding: 0 var(--ui-padding, 16px);
+  padding: 16px 20px 40px;
   box-sizing: border-box;
+  gap: 16px;
 }
 
 /* ── 状态总览卡 ── */
 .per-hero {
   margin: 0;
-  padding: 18px 20px;
-  border-radius: var(--ui-radius-panel, 20px);
-  background: var(--c-card);
-  backdrop-filter: blur(var(--ui-blur, 20px)) saturate(var(--ui-saturate, 180%));
-  -webkit-backdrop-filter: blur(var(--ui-blur, 20px)) saturate(var(--ui-saturate, 180%));
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.025), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  padding: 20px 22px;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
 .per-shell > .page-menu {
-  padding-left: 0;
-  padding-right: 0;
+  padding: 0;
 }
 
 .per-hero-head {
@@ -174,23 +172,30 @@
 .per-cap-toggle { flex: 0 0 auto; align-self: center; }
 
 /* ── 参数区 ── */
+.per-shell .menu-group {
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
 .per-field {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 14px 18px;
 }
 .per-field + .per-field {
-  border-top: 1px solid color-mix(in srgb, var(--c-card-border) 20%, transparent);
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
 }
 .per-field-body { flex: 1; min-width: 0; }
 .per-field-label {
-  font-size: calc(13px * var(--app-text-scale, 1));
-  font-weight: 500;
+  font-size: calc(13.5px * var(--app-text-scale, 1));
+  font-weight: 600;
 }
 .per-field-hint {
   margin-top: 3px;
-  font-size: calc(10.5px * var(--app-text-scale, 1));
+  font-size: calc(11px * var(--app-text-scale, 1));
   line-height: 1.5;
   color: var(--c-text);
 }
@@ -198,7 +203,7 @@
   width: 84px;
   flex: 0 0 auto;
   padding: 8px 10px;
-  border-radius: 10px;
+  border-radius: 12px;
   border: 1px solid var(--c-input-border);
   background: var(--c-input);
   color: var(--c-text-title);
