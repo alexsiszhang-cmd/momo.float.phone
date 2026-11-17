@@ -29,7 +29,7 @@
   flex-direction: column;
   gap: 12px;
   color: var(--c-text-title);
-  padding: 0 16px 24px;
+  padding-bottom: 24px;
 }
 
 .ws-preview-card,
