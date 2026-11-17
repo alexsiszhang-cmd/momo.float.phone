@@ -367,15 +367,15 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
             case "moderation":
                 return <ModerationCenter onNotice={onNotice} />;
             case "perception":
-                return <div className="page-menu"><PerceptionSettings /></div>;
+                return <PerceptionSettings />;
             case "deviceAction":
-                return <div className="page-menu"><DeviceActionSettings /></div>;
+                return <DeviceActionSettings />;
             case "systemCalendar":
-                return <div className="page-menu"><SystemCalendarSettings /></div>;
+                return <SystemCalendarSettings />;
             case "widget":
-                return <div className="page-menu"><WidgetSettings /></div>;
+                return <WidgetSettings />;
             case "screenshot":
-                return <div className="page-menu"><ScreenshotSettings /></div>;
+                return <ScreenshotSettings />;
             case "identity":
                 return <UserIdentitySettings />;
             case "about":

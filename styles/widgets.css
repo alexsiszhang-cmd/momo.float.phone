@@ -27,9 +27,9 @@
 .widget-settings {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   color: var(--c-text-title);
-  padding-bottom: 24px;
+  padding: 20px 16px 28px;
 }
 
 .ws-preview-card,
