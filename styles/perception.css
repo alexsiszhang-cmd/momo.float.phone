@@ -16,18 +16,27 @@
   display: flex;
   flex-direction: column;
   color: var(--c-text-title);
+  padding: 0 var(--ui-padding, 16px);
+  box-sizing: border-box;
 }
 
 /* ── 状态总览卡 ── */
 .per-hero {
-  margin: 0 0 4px;
-  padding: 16px 18px;
-  border-radius: 16px;
-  background: var(--c-panel);
-  box-shadow: 0 6px 20px rgba(40, 34, 20, 0.06);
+  margin: 0;
+  padding: 18px 20px;
+  border-radius: var(--ui-radius-panel, 20px);
+  background: var(--c-card);
+  backdrop-filter: blur(var(--ui-blur, 20px)) saturate(var(--ui-saturate, 180%));
+  -webkit-backdrop-filter: blur(var(--ui-blur, 20px)) saturate(var(--ui-saturate, 180%));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.025), inset 0 1px 0 rgba(255, 255, 255, 0.2);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
+}
+
+.per-shell > .page-menu {
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .per-hero-head {
