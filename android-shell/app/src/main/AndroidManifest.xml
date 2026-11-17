@@ -161,6 +161,28 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!-- Visible, user-enabled ambient-light automation; notification includes a stop action. -->
+        <service
+            android:name=".AmbientLightMonitorService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="User-enabled ambient-light automation for device rules" />
+        </service>
+
+        <!-- 系统电源事件由本机现实桥处理，不依赖网页或登录态。 -->
+        <receiver
+            android:name=".NativeRealityBridgeReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.ACTION_POWER_CONNECTED" />
+                <action android:name="android.intent.action.ACTION_POWER_DISCONNECTED" />
+                <action android:name="android.intent.action.BATTERY_LOW" />
+            </intent-filter>
+        </receiver>
+
         <receiver
             android:name=".BootReceiver"
             android:exported="true">
