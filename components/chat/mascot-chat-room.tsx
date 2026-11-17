@@ -666,7 +666,7 @@ export function MascotChatRoom({ onBack, onDeleted }: MascotChatRoomProps) {
         }
     }, []);
 
-    const handlePickTextFiles = useCallback((files: FileList | null) => {
+    const handlePickTextFiles = useCallback((files: File[] | FileList | null) => {
         if (!files || files.length === 0) return;
         const allowedExts = [".txt", ".md", ".json", ".csv", ".js", ".ts", ".tsx", ".jsx", ".html", ".css", ".yaml", ".yml"];
         for (const file of Array.from(files)) {
@@ -1251,7 +1251,7 @@ export function MascotChatRoom({ onBack, onDeleted }: MascotChatRoomProps) {
                             multiple
                             className="hidden"
                             onChange={(event) => {
-                                const files = event.currentTarget.files;
+                                const files = event.currentTarget.files ? Array.from(event.currentTarget.files) : [];
                                 event.currentTarget.value = "";
                                 handlePickTextFiles(files);
                             }}
