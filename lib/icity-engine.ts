@@ -11,8 +11,23 @@ export async function askCity(instruction:string,data:unknown,characterId?:strin
  const raw=await sendLLMRequest(api,null,[{role:'system',content:instruction+'\n这是虚构的日记平台。只使用给定内容，不得推测未提供的私人日程、聊天、日记或马甲真实身份。只返回 JSON，不要 Markdown。'},{role:'user',content:parts.length>1?parts:JSON.stringify(data)}],[],{characterName:'手记互动',userName:'用户'},{appId:'diary',skipOutputRegex:true,skipWorldline:true});
  const clean=raw.replace(/^\s*```(?:json)?\s*/,'').replace(/\s*```\s*$/,'');try{return JSON.parse(clean);}catch{throw Error('返回格式不正确，请重试');}
 }
+export function getNearbyCharactersContext(){
+ const chars=loadCharacters(),s=loadCity();
+ const enrolledChars=chars.filter(c=>s.enrolled?.includes(c.id));
+ if(!enrolledChars.length)return [];
+ const shuffled=[...enrolledChars].sort(()=>Math.random()-.5).slice(0,3);
+ return shuffled.map(c=>({
+  name:c.name,
+  persona:c.persona?c.persona.slice(0,250):'',
+  personality:c.personality?c.personality.slice(0,100):'',
+  recentDiary:s.entries.find(e=>e.author===c.id)?.text.slice(0,150)||''
+ }));
+}
+
 export async function generateCityWorld(){
- const s=loadCity();const result=await askCity('生成4条互不雷同的匿名日记站生活记录，长短、语气、关注点不同。有人长期写恋爱或追星，有人记录旅行求学、工作或吐槽、私人暗恋、写给去世或分手的人，也有普通小事；每批不必集齐，不都温暖励志或恋爱，不像统一社交动态。不冒充现有角色或现实人物。配图通常用文字描述，可无图，最多3张，不能用相册。返回 {posts:[{name,handle,text,bio,photos:[画面描述]}]}。', {recent:s.entries.filter(x=>x.visibility==='world').slice(0,8).map(x=>x.text)});
+ const s=loadCity(),nearby=getNearbyCharactersContext();
+ const prompt=`生成4条互不雷同的匿名日记站生活记录，语气、角度与关注点不同。${nearby.length?'约70%的日记要求站在角色身边路人/目击者/观察者视角（如咖啡师、乘客、同事、邻居、外卖小哥、同学等），描写在其身边偶遇或观察到目标角色的侧面有趣细节或交集（不暴露全名，用特征或身份代称，如‘隔壁组冷面高个子’、‘店里那位穿西装的客人’）；30%为普通社会生活吐槽。':''}不冒充现有角色。配图用文字描述，可无图，最多3张。返回 {posts:[{name,handle,text,bio,photos:[画面描述]}]}。`;
+ const result=await askCity(prompt, {recent:s.entries.filter(x=>x.visibility==='world').slice(0,8).map(x=>x.text),nearbyCharacters:nearby});
  if(!Array.isArray(result.posts))throw Error('没有返回世界日记');
  const next=loadCity();for(const p of result.posts.slice(0,4)){if(typeof p.text!=='string'||!p.text.trim())continue;const id=`npc:${cityId()}`;next.accounts.push({id,kind:'npc',name:String(p.name||'过路人').slice(0,30),handle:`visitor_${cityId().slice(0,8)}`,bio:String(p.bio||'').slice(0,120),avatar:'',background:'',knownBy:[],defaultVisibility:'world',since:new Date().toISOString()});next.books.push({id:personalBook(id),kind:'personal',name:'日记本',owner:id,members:[id],invited:[]});next.entries.unshift({id:cityId(),author:id,book:personalBook(id),text:p.text.slice(0,5000),photos:Array.isArray(p.photos)?p.photos.filter((x:unknown)=>typeof x==='string').slice(0,3).map((x:string)=>'text://'+encodeURIComponent(x)):[],title:'',createdAt:new Date().toISOString(),visibility:'world',selected:[]});}saveCity(next);const ids=next.entries.filter(e=>!s.entries.some(old=>old.id===e.id)).map(e=>e.id);void import('./icity-runtime').then(m=>m.reactCityWorldLikes(ids));
 }
