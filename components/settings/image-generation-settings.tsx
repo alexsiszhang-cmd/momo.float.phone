@@ -644,58 +644,55 @@ export function ImageGenerationSettings() {
                         <Toggle checked={settings.enabled} onChange={(enabled) => updateSettings({ enabled })} className="settings-toggle-control" />
                     </span>
                 </div>
-                <div className="menu-item border-t border-[var(--c-card-border)] flex-col !items-start gap-3 p-4">
-                    <div className="flex items-center w-full">
-                        <span className="card-icon" style={{ "--icon-color": "#10B981" } as CSSProperties}>
-                            <Camera size={22} strokeWidth={1.75} />
-                        </span>
-                        <span className="settings-tools-menu-copy">
-                            <span className="menu-label appearance-menu-item-label">图像生成模式</span>
-                            <span className="menu-desc settings-tools-menu-desc">控制角色发图时的相册匹配与生图 API 配合方式。</span>
-                        </span>
+                <div className="menu-item border-t border-[var(--c-card-border)] flex-col !items-start gap-2.5 p-4">
+                    <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center gap-3">
+                            <span className="card-icon" style={{ "--icon-color": "#10B981" } as CSSProperties}>
+                                <Camera size={22} strokeWidth={1.75} />
+                            </span>
+                            <span className="settings-tools-menu-copy">
+                                <span className="menu-label appearance-menu-item-label">生图模式</span>
+                                <span className="menu-desc settings-tools-menu-desc">
+                                    {currentMode === "hybrid" && "混合：优先相册，未命中自动生图 API"}
+                                    {currentMode === "album" && "纯相册：仅检索相册，未命中拦截生图"}
+                                    {currentMode === "api" && "纯 API：跳过相册，每次直接调用生图 API"}
+                                </span>
+                            </span>
+                        </div>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 w-full pt-1">
+                    <div className="w-full bg-[var(--c-input)] p-1 rounded-xl flex gap-1 border border-[var(--c-card-border)] mt-1">
                         <button
                             type="button"
-                            className={`p-3 rounded-xl border text-left transition-all ${
+                            className={`flex-1 py-1.5 px-2 rounded-lg text-center ts-12 font-medium transition-all ${
                                 currentMode === "hybrid"
-                                    ? "border-[var(--c-action-blue,#246bfd)] bg-[color-mix(in_srgb,var(--c-action-blue,#246bfd)_12%,transparent)] font-semibold text-[var(--c-text-title,#111)] shadow-sm"
-                                    : "border-[var(--c-card-border)] bg-[var(--c-input)] text-[var(--c-text,#666)] hover:bg-[var(--c-card)]"
+                                    ? "bg-[var(--c-card,#fff)] text-[var(--c-action-blue,#246bfd)] font-semibold shadow-sm"
+                                    : "text-[var(--c-text,#666)] hover:text-[var(--c-text-title,#111)] opacity-80"
                             }`}
                             onClick={() => updateSettings({ mode: "hybrid", albumOnlyMode: false })}
                         >
-                            <div className="ts-13 font-bold flex items-center gap-1.5">
-                                🌟 混合模式
-                            </div>
-                            <div className="ts-11 mt-1 opacity-75 leading-tight">优先匹配相册，未命中自动调用生图 API</div>
+                            混合模式
                         </button>
                         <button
                             type="button"
-                            className={`p-3 rounded-xl border text-left transition-all ${
+                            className={`flex-1 py-1.5 px-2 rounded-lg text-center ts-12 font-medium transition-all ${
                                 currentMode === "album"
-                                    ? "border-[var(--c-action-blue,#246bfd)] bg-[color-mix(in_srgb,var(--c-action-blue,#246bfd)_12%,transparent)] font-semibold text-[var(--c-text-title,#111)] shadow-sm"
-                                    : "border-[var(--c-card-border)] bg-[var(--c-input)] text-[var(--c-text,#666)] hover:bg-[var(--c-card)]"
+                                    ? "bg-[var(--c-card,#fff)] text-[var(--c-action-blue,#246bfd)] font-semibold shadow-sm"
+                                    : "text-[var(--c-text,#666)] hover:text-[var(--c-text-title,#111)] opacity-80"
                             }`}
                             onClick={() => updateSettings({ mode: "album", albumOnlyMode: true })}
                         >
-                            <div className="ts-13 font-bold flex items-center gap-1.5">
-                                📷 纯用相册
-                            </div>
-                            <div className="ts-11 mt-1 opacity-75 leading-tight">仅检索相册，未命中拦截生图，不消耗额度</div>
+                            纯用相册
                         </button>
                         <button
                             type="button"
-                            className={`p-3 rounded-xl border text-left transition-all ${
+                            className={`flex-1 py-1.5 px-2 rounded-lg text-center ts-12 font-medium transition-all ${
                                 currentMode === "api"
-                                    ? "border-[var(--c-action-blue,#246bfd)] bg-[color-mix(in_srgb,var(--c-action-blue,#246bfd)_12%,transparent)] font-semibold text-[var(--c-text-title,#111)] shadow-sm"
-                                    : "border-[var(--c-card-border)] bg-[var(--c-input)] text-[var(--c-text,#666)] hover:bg-[var(--c-card)]"
+                                    ? "bg-[var(--c-card,#fff)] text-[var(--c-action-blue,#246bfd)] font-semibold shadow-sm"
+                                    : "text-[var(--c-text,#666)] hover:text-[var(--c-text-title,#111)] opacity-80"
                             }`}
                             onClick={() => updateSettings({ mode: "api", albumOnlyMode: false })}
                         >
-                            <div className="ts-13 font-bold flex items-center gap-1.5">
-                                🎨 纯用 API
-                            </div>
-                            <div className="ts-11 mt-1 opacity-75 leading-tight">跳过相册检索，每次直接调用 API 生成新图</div>
+                            纯用 API
                         </button>
                     </div>
                 </div>

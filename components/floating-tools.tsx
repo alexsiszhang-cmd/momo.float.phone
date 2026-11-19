@@ -528,43 +528,45 @@ export function FloatingTools({ activeApp, chatSession }: { activeApp: string | 
                             )}
                         </div>}
                         <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--c-text-title)" }}>生图工作模式</div>
-                            <button
-                                type="button"
-                                className={styles.option}
-                                aria-pressed={getImageGenerationMode(effectiveImageSettings) === "hybrid"}
-                                onClick={() => setImageMode("hybrid")}
-                            >
-                                <span>
-                                    🌟 混合模式
-                                    <small>优先匹配相册，未命中自动回退生图 API</small>
-                                </span>
-                                {getImageGenerationMode(effectiveImageSettings) === "hybrid" && <Check size={17} />}
-                            </button>
-                            <button
-                                type="button"
-                                className={styles.option}
-                                aria-pressed={getImageGenerationMode(effectiveImageSettings) === "album"}
-                                onClick={() => setImageMode("album")}
-                            >
-                                <span>
-                                    📷 纯用相册模式
-                                    <small>仅使用相册匹配，未命中时直接拦截，不消耗 API</small>
-                                </span>
-                                {getImageGenerationMode(effectiveImageSettings) === "album" && <Check size={17} />}
-                            </button>
-                            <button
-                                type="button"
-                                className={styles.option}
-                                aria-pressed={getImageGenerationMode(effectiveImageSettings) === "api"}
-                                onClick={() => setImageMode("api")}
-                            >
-                                <span>
-                                    🎨 纯用 API 模式
-                                    <small>跳过相册检索，每次直接调用 API 生成新图</small>
-                                </span>
-                                {getImageGenerationMode(effectiveImageSettings) === "api" && <Check size={17} />}
-                            </button>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--c-text-title)" }}>生图模式</div>
+                            <div style={{ display: "flex", gap: 4, background: "var(--c-input)", padding: 3, borderRadius: 8, border: "1px solid var(--c-card-border)" }}>
+                                <button
+                                    type="button"
+                                    style={{
+                                        flex: 1, border: "none", padding: "6px 0", borderRadius: 6, fontSize: 12, cursor: "pointer", fontWeight: 500,
+                                        background: getImageGenerationMode(effectiveImageSettings) === "hybrid" ? "var(--c-card, #fff)" : "transparent",
+                                        color: getImageGenerationMode(effectiveImageSettings) === "hybrid" ? "var(--c-action-blue, #246bfd)" : "var(--c-text, #666)",
+                                        boxShadow: getImageGenerationMode(effectiveImageSettings) === "hybrid" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                                    }}
+                                    onClick={() => setImageMode("hybrid")}
+                                >
+                                    混合模式
+                                </button>
+                                <button
+                                    type="button"
+                                    style={{
+                                        flex: 1, border: "none", padding: "6px 0", borderRadius: 6, fontSize: 12, cursor: "pointer", fontWeight: 500,
+                                        background: getImageGenerationMode(effectiveImageSettings) === "album" ? "var(--c-card, #fff)" : "transparent",
+                                        color: getImageGenerationMode(effectiveImageSettings) === "album" ? "var(--c-action-blue, #246bfd)" : "var(--c-text, #666)",
+                                        boxShadow: getImageGenerationMode(effectiveImageSettings) === "album" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                                    }}
+                                    onClick={() => setImageMode("album")}
+                                >
+                                    纯用相册
+                                </button>
+                                <button
+                                    type="button"
+                                    style={{
+                                        flex: 1, border: "none", padding: "6px 0", borderRadius: 6, fontSize: 12, cursor: "pointer", fontWeight: 500,
+                                        background: getImageGenerationMode(effectiveImageSettings) === "api" ? "var(--c-card, #fff)" : "transparent",
+                                        color: getImageGenerationMode(effectiveImageSettings) === "api" ? "var(--c-action-blue, #246bfd)" : "var(--c-text, #666)",
+                                        boxShadow: getImageGenerationMode(effectiveImageSettings) === "api" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                                    }}
+                                    onClick={() => setImageMode("api")}
+                                >
+                                    纯用 API
+                                </button>
+                            </div>
                         </div>
                     </>}
                 </div>}
