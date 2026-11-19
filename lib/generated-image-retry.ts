@@ -106,7 +106,7 @@ export async function generateAndApplyChatGeneratedImage(
             };
             const updated = updateChatMessage(message.id, {
                 content: fileName,
-                mediaType: "media_file",
+                mediaType: "image",
                 mediaUrl: memoriesMatch.imageUrl,
                 mediaData: nextData,
             });

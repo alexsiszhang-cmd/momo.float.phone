@@ -2027,17 +2027,37 @@ export function MediaImageWithPreview({
 }) {
     const [preview, setPreview] = useState(false);
     const saveName = filename || title;
+    const [resolvedUrl, setResolvedUrl] = useState<string>(isMediaStoreRef(url) ? "" : url);
+
+    useEffect(() => {
+        if (!isMediaStoreRef(url)) {
+            setResolvedUrl(url);
+            return;
+        }
+        let revokeUrl = "";
+        loadMediaObjectUrl(url).then(objUrl => {
+            if (objUrl) { setResolvedUrl(objUrl); revokeUrl = objUrl; }
+        });
+        return () => { if (revokeUrl) URL.revokeObjectURL(revokeUrl); };
+    }, [url]);
+
+    const displayUrl = resolvedUrl || url;
+
     return (
         <>
             <div className="chat-media-file-wrap">
-                <div className="chat-media-file-card chat-media-file-image" onClick={(e) => { e.stopPropagation(); setPreview(true); }}>
+                <div className="chat-media-file-card chat-media-file-image min-h-[140px] min-w-[140px] flex flex-col justify-center items-center overflow-hidden" onClick={(e) => { e.stopPropagation(); setPreview(true); }}>
                     {title && <div className="chat-media-file-title">{title}</div>}
-                    <img src={url} alt={title} style={{ cursor: "pointer" }} onError={onError} />
+                    {displayUrl ? (
+                        <img src={displayUrl} alt={title} className="block max-w-[240px] max-h-[320px] w-auto h-auto object-cover" style={{ cursor: "pointer", minHeight: "100px" }} onError={onError} />
+                    ) : (
+                        <div className="w-[140px] h-[140px] flex items-center justify-center ts-12 text-[var(--c-icon)]">图片加载中...</div>
+                    )}
                 </div>
             </div>
             {preview && (
                 <MediaPreviewOverlay
-                    imageUrl={url}
+                    imageUrl={displayUrl}
                     saveFilename={ensureExtension(saveName, "image")}
                     onFavorite={onFavorite}
                     onRegenerate={onRegenerate ? () => { setPreview(false); onRegenerate(); } : undefined}
