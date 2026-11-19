@@ -212,9 +212,39 @@ export async function retryMomentGeneratedPhoto(
     dispatchMomentsUpdated();
 
     try {
+        const characterId = post.authorType === "character" ? post.authorId : undefined;
+        // 先尝试从 Memories 相册匹配
+        const memoriesMatch = await resolveMemoriesPhotoForUse({
+            characterId,
+            description,
+        }).catch((err) => {
+            console.warn("[Memories] 朋友圈重试检索照片失败，回退生图:", err);
+            return null;
+        });
+
+        if (memoriesMatch?.imageUrl) {
+            const updated = updateMomentPost(post.id, {
+                photoUrl: memoriesMatch.imageUrl,
+                photoDescription: description,
+                photoUseReferenceImage: effectiveUseReference,
+                photoUseUserReferenceImage: effectiveUseUserReference,
+                photoGenerationStatus: "generated",
+                photoGenerationPrompt: memoriesMatch.photo.prompt || description,
+                photoGenerationError: undefined,
+            });
+            if (!updated) throw new Error("原朋友圈不存在，无法替换图片");
+            dispatchMomentsUpdated();
+            return updated;
+        }
+
+        const imageSettings = loadImageGenerationSettings();
+        if (imageSettings.albumOnlyMode === true) {
+            throw new Error("纯用相册模式：未在相册中找到匹配照片，已拦截生图 API");
+        }
+
         const generated = await generateImageFromConfiguredApi({
             description,
-            characterId: post.authorType === "character" ? post.authorId : undefined,
+            characterId,
             appId: "moments",
             useReferenceImage: effectiveUseReference,
             includeUserReferenceImage: effectiveUseUserReference ? undefined : false,
