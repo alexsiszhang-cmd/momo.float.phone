@@ -15,7 +15,7 @@ import {
     loadImageGenerationSettings,
     saveImageGenerationSettings,
 } from "@/lib/settings-storage";
-import { CONTENT_APP_LABELS, type ApiConfig, type BindingSlot, type ContentAppId, type ImageGenerationSettings } from "@/lib/settings-types";
+import { CONTENT_APP_LABELS, getImageGenerationMode, type ApiConfig, type BindingSlot, type ContentAppId, type ImageGenerationMode, type ImageGenerationSettings } from "@/lib/settings-types";
 import {
     applyImageGenerationBinding,
     getActiveImageGenerationBindingId,
@@ -367,9 +367,13 @@ export function FloatingTools({ activeApp, chatSession }: { activeApp: string | 
         }
     }, [activeImageId, activeImageSettings, hasImageSelection, imagePreview]);
 
-    const toggleAlbumOnlyMode = useCallback(() => {
+    const setImageMode = useCallback((mode: ImageGenerationMode) => {
         const cur = loadImageGenerationSettings();
-        const next = { ...cur, albumOnlyMode: !cur.albumOnlyMode };
+        const next = {
+            ...cur,
+            mode,
+            albumOnlyMode: mode === "album",
+        };
         saveImageGenerationSettings(next);
         setImageSettings(next);
     }, []);
@@ -523,20 +527,45 @@ export function FloatingTools({ activeApp, chatSession }: { activeApp: string | 
                                 </div>
                             )}
                         </div>}
-                        <button
-                            type="button"
-                            className={styles.option}
-                            aria-pressed={Boolean(effectiveImageSettings.albumOnlyMode)}
-                            onClick={toggleAlbumOnlyMode}
-                            style={{ marginTop: 8 }}
-                        >
-                            <span>
-                                <Camera size={15} style={{ verticalAlign: "middle", marginRight: 6 }} />
-                                纯用相册模式
-                                <small>{effectiveImageSettings.albumOnlyMode ? "仅使用相册匹配，拦截 API 消耗" : "未命中相册时自动回退生图 API"}</small>
-                            </span>
-                            {effectiveImageSettings.albumOnlyMode && <Check size={17} />}
-                        </button>
+                        <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--c-text-title)" }}>生图工作模式</div>
+                            <button
+                                type="button"
+                                className={styles.option}
+                                aria-pressed={getImageGenerationMode(effectiveImageSettings) === "hybrid"}
+                                onClick={() => setImageMode("hybrid")}
+                            >
+                                <span>
+                                    🌟 混合模式
+                                    <small>优先匹配相册，未命中自动回退生图 API</small>
+                                </span>
+                                {getImageGenerationMode(effectiveImageSettings) === "hybrid" && <Check size={17} />}
+                            </button>
+                            <button
+                                type="button"
+                                className={styles.option}
+                                aria-pressed={getImageGenerationMode(effectiveImageSettings) === "album"}
+                                onClick={() => setImageMode("album")}
+                            >
+                                <span>
+                                    📷 纯用相册模式
+                                    <small>仅使用相册匹配，未命中时直接拦截，不消耗 API</small>
+                                </span>
+                                {getImageGenerationMode(effectiveImageSettings) === "album" && <Check size={17} />}
+                            </button>
+                            <button
+                                type="button"
+                                className={styles.option}
+                                aria-pressed={getImageGenerationMode(effectiveImageSettings) === "api"}
+                                onClick={() => setImageMode("api")}
+                            >
+                                <span>
+                                    🎨 纯用 API 模式
+                                    <small>跳过相册检索，每次直接调用 API 生成新图</small>
+                                </span>
+                                {getImageGenerationMode(effectiveImageSettings) === "api" && <Check size={17} />}
+                            </button>
+                        </div>
                     </>}
                 </div>}
                 {view === "books" && <div className={styles.detail}>

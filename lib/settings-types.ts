@@ -242,9 +242,19 @@ export type NovelAiSettings = {
     presets: NovelAiPreset[];
 };
 
+export type ImageGenerationMode = "hybrid" | "album" | "api";
+
+export function getImageGenerationMode(settings: Partial<ImageGenerationSettings> | undefined | null): ImageGenerationMode {
+    if (settings?.mode) return settings.mode;
+    if (settings?.albumOnlyMode === true) return "album";
+    return "hybrid";
+}
+
 export type ImageGenerationSettings = {
     enabled: boolean;
-    /** 纯用相册模式：角色发图仅从相册（如 Memories）中调用，未命中时不调用生图 API */
+    /** 生图模式：hybrid=混合模式（优先相册，未命中生图API）；album=纯相册；api=纯API生图 */
+    mode?: ImageGenerationMode;
+    /** 纯用相册模式（向后兼容） */
     albumOnlyMode?: boolean;
     provider?: ImageGenerationProvider;
     requestMode: ImageGenerationRequestMode;

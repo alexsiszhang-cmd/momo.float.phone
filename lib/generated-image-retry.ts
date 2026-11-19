@@ -1,4 +1,5 @@
 import { saveChatImageToIndexedDB } from "./chat-asset-storage";
+import { getImageGenerationMode } from "./settings-types";
 import { syncChatGeneratedImagePromptText, updateChatMessage, type ChatMessage } from "./chat-storage";
 import { generatedImageFilename, generateImageFromConfiguredApi } from "./image-generation-service";
 import { loadImageGenerationSettings } from "./settings-storage";
@@ -79,14 +80,20 @@ export async function generateAndApplyChatGeneratedImage(
     }
 
     try {
-        // 先尝试从用户自定义 APP「Memories」相册中按语义匹配已有照片
-        const memoriesMatch = await resolveMemoriesPhotoForUse({
-            characterId,
-            description,
-        }).catch((err) => {
-            console.warn("[Memories] 检索照片失败，回退生图:", err);
-            return null;
-        });
+        const imageSettings = loadImageGenerationSettings();
+        const mode = getImageGenerationMode(imageSettings);
+
+        let memoriesMatch = null;
+        if (mode !== "api") {
+            // 混合模式或纯相册模式：优先从相册检索
+            memoriesMatch = await resolveMemoriesPhotoForUse({
+                characterId,
+                description,
+            }).catch((err) => {
+                console.warn("[Memories] 检索照片失败，回退生图:", err);
+                return null;
+            });
+        }
 
         if (memoriesMatch) {
             const fileName = generatedImageFilename(description, "image/png");
@@ -116,8 +123,7 @@ export async function generateAndApplyChatGeneratedImage(
             }
         }
 
-        const imageSettings = loadImageGenerationSettings();
-        if (imageSettings.albumOnlyMode === true) {
+        if (mode === "album") {
             throw new Error("纯用相册模式：未在相册中找到匹配照片，已拦截生图 API");
         }
 
@@ -213,14 +219,19 @@ export async function retryMomentGeneratedPhoto(
 
     try {
         const characterId = post.authorType === "character" ? post.authorId : undefined;
-        // 先尝试从 Memories 相册匹配
-        const memoriesMatch = await resolveMemoriesPhotoForUse({
-            characterId,
-            description,
-        }).catch((err) => {
-            console.warn("[Memories] 朋友圈重试检索照片失败，回退生图:", err);
-            return null;
-        });
+        const imageSettings = loadImageGenerationSettings();
+        const mode = getImageGenerationMode(imageSettings);
+
+        let memoriesMatch = null;
+        if (mode !== "api") {
+            memoriesMatch = await resolveMemoriesPhotoForUse({
+                characterId,
+                description,
+            }).catch((err) => {
+                console.warn("[Memories] 朋友圈重试检索照片失败，回退生图:", err);
+                return null;
+            });
+        }
 
         if (memoriesMatch?.imageUrl) {
             const updated = updateMomentPost(post.id, {
@@ -237,8 +248,7 @@ export async function retryMomentGeneratedPhoto(
             return updated;
         }
 
-        const imageSettings = loadImageGenerationSettings();
-        if (imageSettings.albumOnlyMode === true) {
+        if (mode === "album") {
             throw new Error("纯用相册模式：未在相册中找到匹配照片，已拦截生图 API");
         }
 

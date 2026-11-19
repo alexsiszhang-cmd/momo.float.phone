@@ -35,6 +35,7 @@ import {
     loadRegexes,
     loadImageGenerationSettings,
 } from "./settings-storage";
+import { getImageGenerationMode } from "./settings-types";
 import { resolveMemoriesPhotoForUse } from "./memories-photo-resolver";
 import { resolveChatScopeUserIdentity } from "./chat-scope-storage";
 import type { PresetConfig, ApiConfig } from "./settings-types";
@@ -1237,22 +1238,25 @@ export async function generateMomentPhotoUrl(
     try {
         throwIfAborted(signal);
 
-        // 1. 优先尝试从 Memories 相册中按语义匹配已有照片
-        const memoriesMatch = await resolveMemoriesPhotoForUse({
-            characterId,
-            description,
-        }).catch((err) => {
-            console.warn("[Memories] 朋友圈检索照片失败，回退生图:", err);
-            return null;
-        });
+        const imageSettings = loadImageGenerationSettings();
+        const mode = getImageGenerationMode(imageSettings);
+
+        let memoriesMatch = null;
+        if (mode !== "api") {
+            memoriesMatch = await resolveMemoriesPhotoForUse({
+                characterId,
+                description,
+            }).catch((err) => {
+                console.warn("[Memories] 朋友圈检索照片失败，回退生图:", err);
+                return null;
+            });
+        }
 
         if (memoriesMatch?.imageUrl) {
             return { url: memoriesMatch.imageUrl, prompt: memoriesMatch.photo.prompt || description };
         }
 
-        // 2. 纯用相册模式拦截
-        const imageSettings = loadImageGenerationSettings();
-        if (imageSettings.albumOnlyMode === true) {
+        if (mode === "album") {
             throw new Error("纯用相册模式：未在相册中找到匹配照片，已拦截生图 API");
         }
 
