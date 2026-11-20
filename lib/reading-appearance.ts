@@ -73,9 +73,6 @@ function normalizeAppearance(raw: Partial<ReadingAppearance> | null | undefined)
         : DEFAULT_READING_APPEARANCE.fontFamily;
     const fontSize = clamp(Number(raw?.fontSize ?? DEFAULT_READING_APPEARANCE.fontSize) || DEFAULT_READING_APPEARANCE.fontSize, 12, 30);
     const lineHeight = clamp(Number(raw?.lineHeight ?? DEFAULT_READING_APPEARANCE.lineHeight) || DEFAULT_READING_APPEARANCE.lineHeight, 1.2, 2.8);
-    const textColor = typeof raw?.textColor === "string" && raw.textColor.trim()
-        ? raw.textColor.trim()
-        : DEFAULT_READING_APPEARANCE.textColor;
     const themeId = READING_THEMES.some((t) => t.id === raw?.themeId) ? raw!.themeId! : "paper";
     const themeObj = READING_THEMES.find((t) => t.id === themeId) || READING_THEMES[0];
     const textColor = typeof raw?.textColor === "string" && raw.textColor.trim() && raw.textColor !== DEFAULT_READING_APPEARANCE.textColor
