@@ -2129,7 +2129,7 @@ export function ReadingViewer({ book, onBack }: Props) {
     const activeThemeObj = READING_THEMES.find(t => t.id === readingAppearance.themeId) || READING_THEMES[0];
 
     return (
-        <div className="reading-app-surface absolute inset-0 z-[100] flex flex-col transition-colors duration-300" data-immersive={immersive} style={{ paddingTop: "var(--page-header-safe-top, 48px)", backgroundColor: activeThemeObj.bg, color: activeThemeObj.textColor }}>
+        <div className="reading-app-surface absolute inset-0 z-[100] flex flex-col transition-colors duration-300" data-immersive={immersive} style={{ backgroundColor: activeThemeObj.bg, color: activeThemeObj.textColor }}>
             {/* Page flip overlay */}
             {flipAnim && (
                 <>
@@ -2146,7 +2146,7 @@ export function ReadingViewer({ book, onBack }: Props) {
             )}
 
             {/* Header — chapter name + page info */}
-            <header className={`reading-header ${immersive ? "reading-header--immersive" : "reading-header--revealed"}`} data-ui="header" style={{ backgroundColor: activeThemeObj.bg, borderColor: activeThemeObj.borderColor, color: activeThemeObj.textColor }}>
+            <header className={`reading-header ${immersive ? "reading-header--immersive" : "reading-header--revealed"}`} data-ui="header" style={{ paddingTop: "var(--page-header-safe-top, 48px)", backgroundColor: activeThemeObj.bg, borderColor: activeThemeObj.borderColor, color: activeThemeObj.textColor }}>
                 <div className="reading-header-top">
                     <button onClick={onBack} className="page-back-btn reading-header-back">
                         <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -2254,7 +2254,7 @@ export function ReadingViewer({ book, onBack }: Props) {
                         <div className="reading-debug-hint">章节数据存在，但当前索引取不到正文。这个状态不是“正在加载”，而是本地章节数据和进度状态不一致。</div>
                     </div>
                 ) : isScrollMode ? (
-                    <div ref={scrollContentRef} className="reading-scroll-content">
+                    <div ref={scrollContentRef} className="reading-scroll-content" style={{ color: activeThemeObj.textColor }}>
                         {windowChapters.map((chapter) => (
                             <div key={chapter.id} data-chapter-index={chapter.index}>
                                 {chapter.paragraphs.map((paragraph, pIndex) => {
@@ -2287,7 +2287,7 @@ export function ReadingViewer({ book, onBack }: Props) {
                             onTouchStart={handleTouchStart}
                             onTouchEnd={handleTouchEnd}
                         >
-                            <div className="reading-page-surface">
+                            <div className="reading-page-surface" style={{ color: activeThemeObj.textColor }}>
                                 {txtPagesReadyForCurrentChapter ? renderTxtPage(txtPage) : null}
                             </div>
                         </div>

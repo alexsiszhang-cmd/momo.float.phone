@@ -77,6 +77,10 @@ function normalizeAppearance(raw: Partial<ReadingAppearance> | null | undefined)
         ? raw.textColor.trim()
         : DEFAULT_READING_APPEARANCE.textColor;
     const themeId = READING_THEMES.some((t) => t.id === raw?.themeId) ? raw!.themeId! : "paper";
+    const themeObj = READING_THEMES.find((t) => t.id === themeId) || READING_THEMES[0];
+    const textColor = typeof raw?.textColor === "string" && raw.textColor.trim() && raw.textColor !== DEFAULT_READING_APPEARANCE.textColor
+        ? raw.textColor.trim()
+        : themeObj.textColor;
     const customFontName = typeof raw?.customFontName === "string" && raw.customFontName.trim()
         ? raw.customFontName.trim()
         : undefined;
