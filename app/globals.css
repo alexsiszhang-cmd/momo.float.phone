@@ -233,11 +233,19 @@
 /* ══════════════════════════════════════════
    Reading Highlight & Selection Tools
    ══════════════════════════════════════════ */
+.reading-app-surface,
+.reading-page-stage,
+.reading-page-surface,
+.reading-page-content,
+.reading-scroll-content,
+.reading-line,
+.reading-seg {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
 .reading-seg {
   cursor: pointer;
   transition: background-color 0.15s ease;
-  user-select: text;
-  -webkit-user-select: text;
 }
 .reading-seg.hl-human {
   border-bottom: 2px solid rgba(233, 96, 155, 0.7);

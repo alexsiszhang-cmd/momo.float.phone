@@ -482,8 +482,6 @@ export function ReadingViewer({ book, onBack }: Props) {
         if (isPdf) return;
         const sel = window.getSelection();
         if (!sel || sel.isCollapsed || !sel.rangeCount) {
-            setSelectionToolsPos((prev) => ({ ...prev, visible: false }));
-            setPendingSelection(null);
             return;
         }
 
