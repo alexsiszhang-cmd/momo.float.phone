@@ -971,12 +971,12 @@ export function ReadingViewer({ book, onBack }: Props) {
         if (chapter && typeof selectedAnnoForSheet.paragraphIndex === "number") {
             const pText = chapter.paragraphs[selectedAnnoForSheet.paragraphIndex];
             if (pText) {
-                const start = typeof selectedAnnoForSheet.startOff === "number" ? selectedAnnoForSheet.startOff : 0;
-                const end = typeof selectedAnnoForSheet.endOff === "number" && selectedAnnoForSheet.endOff > start
-                    ? selectedAnnoForSheet.endOff
-                    : pText.length;
-                const sliced = pText.slice(start, end);
-                if (sliced.trim()) return sliced;
+                if (selectedAnnoForSheet.quote && selectedAnnoForSheet.quote !== selectedAnnoForSheet.content) {
+                    if (selectedAnnoForSheet.quote.length >= pText.length) {
+                        return selectedAnnoForSheet.quote;
+                    }
+                }
+                return pText;
             }
         }
         return selectedAnnoForSheet.quote || selectedAnnoForSheet.content || "正文划线原句";

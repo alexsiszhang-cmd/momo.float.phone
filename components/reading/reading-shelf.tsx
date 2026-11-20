@@ -136,9 +136,12 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
     const [availableCharacters, setAvailableCharacters] = useState<Character[]>([]);
     const fileRef = useRef<HTMLInputElement>(null);
 
+    const [detailChapters, setDetailChapters] = useState<BookChapter[]>([]);
+
     useEffect(() => {
         if (detailBook) {
             void loadAllBookAnnotations(detailBook.id).then(setDetailAnnos);
+            void loadChapters(detailBook.id).then(setDetailChapters);
         }
     }, [detailBook]);
 
@@ -805,40 +808,57 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
                     ) : bookAnnos.length === 0 ? (
                         <div className="text-center py-8 text-xs" style={{ color: activeThemeObj.subtextColor }}>暂无批注记录，点击正文即可开始划线</div>
                     ) : (
-                        bookAnnos.map((anno) => (
-                            <div key={anno.id} className="rounded-xl p-3 mb-3 border shadow-sm" style={{ backgroundColor: activeThemeObj.cardBg, borderColor: activeThemeObj.borderColor }}>
-                                <div className="flex justify-between items-center text-[11px] mb-2" style={{ color: activeThemeObj.subtextColor }}>
-                                    <span>{anno.chapterTitle || "正文"} · {anno.createdAt}</span>
-                                    <span
-                                        className="font-medium cursor-pointer"
-                                        style={{ color: activeThemeObj.accentColor }}
-                                        onClick={() => onOpenBook(detailBook)}
-                                    >
-                                        看原文 &gt;
-                                    </span>
-                                </div>
-                                <div className="p-2.5 rounded-r-lg text-xs leading-relaxed mb-2 border-l-2" style={{ backgroundColor: activeThemeObj.bg, borderColor: activeThemeObj.accentColor, color: activeThemeObj.textColor }}>
-                                    {anno.quote || anno.content}
-                                </div>
-                                <div className="space-y-1.5">
-                                    {anno.comments && anno.comments.length > 0 ? (
-                                        anno.comments.map((c, i) => (
-                                            <div key={i} className="text-xs">
-                                                <span className="font-semibold mr-1" style={{ color: activeThemeObj.accentColor }}>
-                                                    {c.author}:
-                                                </span>
-                                                <span style={{ color: activeThemeObj.textColor }}>{c.text}</span>
+                        bookAnnos.map((anno) => {
+                            const chapter = detailChapters[anno.chapterIndex];
+                            const pText = chapter?.paragraphs?.[anno.paragraphIndex];
+                            let quoteText = anno.quote;
+                            if (!quoteText || quoteText === anno.content) {
+                                if (pText) {
+                                    const start = typeof anno.startOff === "number" ? anno.startOff : 0;
+                                    const end = typeof anno.endOff === "number" && anno.endOff > start ? anno.endOff : pText.length;
+                                    const sliced = pText.slice(start, end);
+                                    quoteText = sliced.trim() || pText;
+                                }
+                            }
+                            if (!quoteText || quoteText === anno.content) {
+                                quoteText = pText || "划线原句（点击“看原文”查看上下文）";
+                            }
+
+                            return (
+                                <div key={anno.id} className="rounded-xl p-3 mb-3 border shadow-sm" style={{ backgroundColor: activeThemeObj.cardBg, borderColor: activeThemeObj.borderColor }}>
+                                    <div className="flex justify-between items-center text-[11px] mb-2" style={{ color: activeThemeObj.subtextColor }}>
+                                        <span>{anno.chapterTitle || (chapter ? chapter.title : "正文")} · {anno.createdAt}</span>
+                                        <span
+                                            className="font-medium cursor-pointer"
+                                            style={{ color: activeThemeObj.accentColor }}
+                                            onClick={() => onOpenBook(detailBook)}
+                                        >
+                                            看原文 &gt;
+                                        </span>
+                                    </div>
+                                    <div className="p-2.5 rounded-r-lg text-xs leading-relaxed mb-2 border-l-2 max-h-36 overflow-y-auto break-words whitespace-pre-wrap" style={{ backgroundColor: activeThemeObj.bg, borderColor: activeThemeObj.accentColor, color: activeThemeObj.textColor }}>
+                                        {quoteText}
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        {anno.comments && anno.comments.length > 0 ? (
+                                            anno.comments.map((c, i) => (
+                                                <div key={i} className="text-xs">
+                                                    <span className="font-semibold mr-1" style={{ color: activeThemeObj.accentColor }}>
+                                                        {c.author}:
+                                                    </span>
+                                                    <span style={{ color: activeThemeObj.textColor }}>{c.text}</span>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="text-xs">
+                                                <span className="font-semibold mr-1" style={{ color: activeThemeObj.accentColor }}>{anno.characterName}:</span>
+                                                <span style={{ color: activeThemeObj.textColor }}>{anno.content}</span>
                                             </div>
-                                        ))
-                                    ) : (
-                                        <div className="text-xs">
-                                            <span className="font-semibold mr-1" style={{ color: activeThemeObj.accentColor }}>{anno.characterName}:</span>
-                                            <span style={{ color: activeThemeObj.textColor }}>{anno.content}</span>
-                                        </div>
-                                    )}
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        ))
+                            );
+                        })
                     )}
                 </div>
 
