@@ -443,7 +443,7 @@ export function ReadingViewer({ book, onBack }: Props) {
             context: pText,
         });
 
-        const top = rect ? Math.max(60, rect.top - 12) : window.innerHeight / 2 - 40;
+        const top = rect ? Math.min(window.innerHeight - 80, rect.bottom + 8) : window.innerHeight / 2 + 40;
         const left = rect ? Math.max(80, Math.min(window.innerWidth - 80, rect.left + rect.width / 2)) : window.innerWidth / 2;
 
         setSelectionToolsPos({
@@ -582,7 +582,7 @@ export function ReadingViewer({ book, onBack }: Props) {
 
         setSelectionToolsPos({
             left: Math.max(80, Math.min(window.innerWidth - 80, rect.left + rect.width / 2)),
-            top: Math.max(60, rect.top - 12),
+            top: Math.min(window.innerHeight - 80, rect.bottom + 8),
             visible: true,
         });
     }, [chapterIndex, isPdf]);
@@ -618,8 +618,8 @@ export function ReadingViewer({ book, onBack }: Props) {
             startOff: pendingSelection.startOff,
             endOff: pendingSelection.endOff,
             quote: pendingSelection.quote,
-            color: hlColor,
-            style: hlStyle,
+            color: "#e9609b",
+            style: "highlight",
             createdBy: "human",
             characterId: companionId || "user",
             characterName: companion?.name || "读者",
@@ -1449,11 +1449,18 @@ export function ReadingViewer({ book, onBack }: Props) {
         for (const action of actions) {
             if (action.type === "add_annotation") {
                 if (action.paragraphIndex < 0 || action.paragraphIndex >= currentChapter.paragraphs.length) continue;
+                const pText = currentChapter.paragraphs[action.paragraphIndex] || "";
                 const annotation: ReadingAnnotation = {
                     id: `ra_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
                     bookId: book.id,
                     chapterIndex,
                     paragraphIndex: action.paragraphIndex,
+                    startOff: 0,
+                    endOff: Math.min(pText.length, 30),
+                    quote: pText.slice(0, 30),
+                    color: "#e5b66e",
+                    style: "highlight",
+                    createdBy: "ai",
                     characterId: companionId,
                     characterName: companion.name,
                     content: action.content,
@@ -2099,23 +2106,12 @@ export function ReadingViewer({ book, onBack }: Props) {
                 )}
             </header>
 
-            {/* 划线模式提示与调色盘 */}
+            {/* 划线模式提示 */}
             {isHighlightMode && (
                 <div className="reading-highlight-mode-bar" data-no-nav="true" onClick={(e) => e.stopPropagation()}>
                     <div className="reading-highlight-mode-info">
                         <Highlighter size={16} />
-                        <span>划线模式中 · 翻页已暂停</span>
-                    </div>
-                    <div className="reading-highlight-mode-colors">
-                        {["#e9609b", "#ac96e4", "#4a71b5", "#72bb86", "#e5b66e"].map((c) => (
-                            <button
-                                key={c}
-                                type="button"
-                                className={`reading-color-dot ${hlColor === c ? "is-active" : ""}`}
-                                style={{ backgroundColor: c }}
-                                onClick={() => setHlColor(c)}
-                            />
-                        ))}
+                        <span>划线模式中 · 点击单句即划线，翻页已暂停</span>
                     </div>
                     <button
                         type="button"
