@@ -460,8 +460,14 @@ export function ReadingViewer({ book, onBack }: Props) {
         currentChapterIndex: number,
     ) => {
         const hlAnnos = annotations.filter(
-            (a) => a.chapterIndex === currentChapterIndex && a.paragraphIndex === paragraphIndex && typeof a.startOff === "number" && typeof a.endOff === "number" && a.endOff > a.startOff
-        );
+            (a) => a.chapterIndex === currentChapterIndex && a.paragraphIndex === paragraphIndex
+        ).map((a) => {
+            const startOff = typeof a.startOff === "number" ? a.startOff : 0;
+            const endOff = typeof a.endOff === "number" && a.endOff > startOff ? a.endOff : text.length;
+            const createdBy = a.createdBy || (a.characterId === "user" ? "human" : "ai");
+            const color = a.color || (createdBy === "human" ? "#e9609b" : "#e5b66e");
+            return { ...a, startOff, endOff, createdBy, color };
+        });
 
         if (hlAnnos.length === 0) {
             return text;
@@ -655,7 +661,7 @@ export function ReadingViewer({ book, onBack }: Props) {
                     item.kind === "gap"
                         ? <div key={i} className="reading-line-gap" />
                         : item.kind === "annotation"
-                            ? renderAnnotationItem(item.annotation)
+                            ? null
                             : <p
                                 key={i}
                                 className={`reading-line${item.indent ? " reading-line-indent" : ""}${item.segEnd ? " reading-line-seg-end" : ""}`}
@@ -724,10 +730,7 @@ export function ReadingViewer({ book, onBack }: Props) {
                 item.kind === "gap"
                     ? <div key={i} className="reading-line-gap" />
                     : item.kind === "annotation"
-                        ? <div key={i} className="reading-annotation">
-                            <span className="reading-annotation-name">{item.annotation.characterName}</span>
-                            <span className="reading-annotation-text">{item.annotation.content}</span>
-                        </div>
+                        ? null
                         : <p
                             key={i}
                             className={`reading-line${item.indent ? " reading-line-indent" : ""}${item.segEnd ? " reading-line-seg-end" : ""}`}
@@ -2229,7 +2232,7 @@ export function ReadingViewer({ book, onBack }: Props) {
                                                     {renderParaContentWithHighlights(segment, pIndex, chapter.index)}
                                                 </p>
                                             ))}
-                                            {paragraphAnnotations.map((annotation) => renderAnnotationItem(annotation))}
+                                            {/* 批注已融合进高亮划线，不再作为裸露卡片直接摆在正文段落之间 */}
                                         </div>
                                     );
                                 })}
@@ -2644,7 +2647,20 @@ export function ReadingViewer({ book, onBack }: Props) {
             {selectedAnnoForSheet && (
                 <div className="fixed inset-0 z-[200] bg-black/40 flex flex-col justify-end" onClick={() => setSelectedAnnoForSheet(null)}>
                     <div className="bg-white rounded-t-3xl p-5 max-h-[75vh] flex flex-col shadow-2xl text-[#2b2622]" onClick={(e) => e.stopPropagation()}>
-                        <div className="w-9 h-1 bg-[#e3d5c5] rounded-full self-center mb-3" />
+                        <div className="w-9 h-1 bg-[#e3d5c5] rounded-full self-center mb-2" />
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-semibold text-[#8c827a]">划线与批注</span>
+                            <button
+                                type="button"
+                                className="text-xs text-[#b84e4e] font-medium hover:underline bg-transparent border-none cursor-pointer"
+                                onClick={async () => {
+                                    await handleDeleteReadingAnnotation(selectedAnnoForSheet.id);
+                                    setSelectedAnnoForSheet(null);
+                                }}
+                            >
+                                删除划线
+                            </button>
+                        </div>
                         <div className="bg-[#fbf9f5] border-l-3 border-[#9e2a2b] p-3 rounded-r-lg text-xs leading-relaxed text-[#2b2622] mb-3">
                             {selectedAnnoForSheet.quote || selectedAnnoForSheet.content}
                         </div>
