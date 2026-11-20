@@ -1167,14 +1167,22 @@ export function ReadingViewer({ book, onBack }: Props) {
         }
     };
 
+    const blocksSwipe = useCallback(() => {
+        const selText = window.getSelection()?.toString().trim();
+        return (
+            Boolean(selText) ||
+            isHighlightMode ||
+            selectionToolsPos.visible ||
+            showWriteModal ||
+            showNavigationDialog ||
+            showReadingSettings
+        );
+    }, [isHighlightMode, selectionToolsPos.visible, showWriteModal, showNavigationDialog, showReadingSettings]);
+
     const handleReadingSurfaceClick = (e: React.MouseEvent<HTMLDivElement>) => {
         const target = e.target as HTMLElement | null;
         if (!target) return;
-        // 开启划线模式时，拦截所有页面点击沉浸与翻页
-        if (isHighlightMode) return;
-        // 如果手机端正在选字，不触发页面沉浸与点击翻页
-        const selText = window.getSelection()?.toString().trim();
-        if (selText) return;
+        if (blocksSwipe()) return;
 
         if (target.closest("button, input, select, textarea, a, [data-no-nav='true']")) return;
         if (activeMessageId || activeAnnotationId) {
@@ -1960,9 +1968,7 @@ export function ReadingViewer({ book, onBack }: Props) {
     };
 
     const handleTouchEnd = (e: React.TouchEvent) => {
-        if (isHighlightMode) return;
-        const selText = window.getSelection()?.toString().trim();
-        if (selText) return;
+        if (blocksSwipe()) return;
 
         const dx = e.changedTouches[0].clientX - touchStartRef.current.x;
         const dy = e.changedTouches[0].clientY - touchStartRef.current.y;
