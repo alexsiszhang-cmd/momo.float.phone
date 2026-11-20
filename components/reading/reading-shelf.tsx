@@ -480,7 +480,7 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
 
                     <div className="grid grid-cols-2 gap-3 mb-4">
                         <div className="bg-white rounded-2xl p-4 text-center border border-[#e3d5c5]/50 shadow-sm">
-                            <div className="text-xs text-[#8c827a]">小思累计阅读</div>
+                            <div className="text-xs text-[#8c827a]">我的累计阅读</div>
                             <div className="text-lg font-bold mt-1">14 小时 30 分</div>
                         </div>
                         <div className="bg-white rounded-2xl p-4 text-center border border-[#e3d5c5]/50 shadow-sm">
@@ -542,6 +542,13 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
     }
 
     if (detailBook) {
+        const realProg = progressMap[detailBook.id];
+        const rawPct = realProg?.hasProgress
+            ? Math.round((realProg.fraction ?? ((realProg.chapterIndex + 1) / (realProg.total || 1))) * 100)
+            : 0;
+        const realPct = Math.min(100, Math.max(0, rawPct));
+        const autoStatus = realPct === 0 ? "未读" : realPct >= 100 ? "读完" : "在读";
+
         const bookAnnos = annoSearch.trim()
             ? detailAnnos.filter(a => a.quote?.includes(annoSearch) || a.content?.includes(annoSearch))
             : detailAnnos;
@@ -595,15 +602,9 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
                                         {detailBook.title}
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                                     </span>
-                                    <select
-                                        value={detailBook.status || "reading"}
-                                        onChange={(e) => handleStatusChange(e.target.value as any)}
-                                        className="bg-[#f4ece1] text-[#9e2a2b] text-xs px-2 py-0.5 rounded-full font-medium border-none outline-none"
-                                    >
-                                        <option value="reading">在读</option>
-                                        <option value="finished">读完</option>
-                                        <option value="unread">未读</option>
-                                    </select>
+                                    <span className="bg-[#f4ece1] text-[#9e2a2b] text-xs px-2.5 py-0.5 rounded-full font-medium">
+                                        {autoStatus}
+                                    </span>
                                 </div>
                                 <div onClick={handleUpdateBookAuthor} className="text-xs text-[#8c827a] mt-1 cursor-pointer flex items-center gap-1">
                                     {detailBook.author || "未知作者"}
@@ -625,9 +626,11 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
                         <div className="text-sm font-semibold mb-3">我们的共读记录</div>
                         <div className="flex items-center justify-between pb-3 border-b border-[#f4ece1]">
                             <div className="flex-1">
-                                <div className="text-xs text-[#8c827a]">小思 · 上次读到</div>
-                                <div className="text-lg font-bold text-[#2b2622] my-0.5">35%</div>
-                                <div className="text-[10px] text-[#8c827a]">上次 10/29 05:45</div>
+                                <div className="text-xs text-[#8c827a]">上次读到</div>
+                                <div className="text-lg font-bold text-[#2b2622] my-0.5">{realPct}%</div>
+                                <div className="text-[10px] text-[#8c827a]">
+                                    {realProg?.hasProgress ? `已读取至第${realProg.chapterIndex + 1}章` : "尚未开始"}
+                                </div>
                             </div>
                             <div className="w-px h-9 bg-[#e3d5c5] mx-4" />
                             <div className="flex-1">
@@ -641,10 +644,6 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
                                     {activeChars.length > 0 ? `${activeChars.length} 位 Char 参与` : "尚未开始"}
                                 </div>
                             </div>
-                        </div>
-                        <div className="flex justify-between items-center pt-2 text-xs text-[#8c827a]">
-                            <span>共读 37 分钟</span>
-                            <span>最近翻开 10/29 05:45</span>
                         </div>
                     </div>
 
@@ -684,7 +683,9 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
                         />
                     </div>
 
-                    {bookAnnos.length === 0 ? (
+                    {detailTab === "bookmarks" ? (
+                        <div className="text-center py-8 text-xs text-[#8c827a]">暂无书签，在阅读正文时可点击添加书签</div>
+                    ) : bookAnnos.length === 0 ? (
                         <div className="text-center py-8 text-xs text-[#8c827a]">暂无批注记录，点击正文即可开始划线</div>
                     ) : (
                         bookAnnos.map((anno) => (
