@@ -425,7 +425,7 @@ export function ReadingViewer({ book, onBack }: Props) {
             onPointerLeave={() => { if (longPressTimer.current) clearTimeout(longPressTimer.current); }}
             onClick={(e) => {
                 e.stopPropagation();
-                if (activeAnnotationId && activeAnnotationId !== annotation.id) setActiveAnnotationId(null);
+                setSelectedAnnoForSheet(annotation);
             }}
         >
             <span className="reading-annotation-name">{annotation.characterName}</span>
@@ -683,6 +683,40 @@ export function ReadingViewer({ book, onBack }: Props) {
     useEffect(() => { refreshChatMessages(); }, [refreshChatMessages, companionId]);
 
     const [annotationError, setAnnotationError] = useState<string | null>(null);
+    const [selectedAnnoForSheet, setSelectedAnnoForSheet] = useState<ReadingAnnotation | null>(null);
+    const [availableChars, setAvailableChars] = useState<Character[]>([]);
+
+    useEffect(() => {
+        setAvailableChars(loadCharacters());
+    }, []);
+
+    const handleSummonCharForAnno = async (charId: string) => {
+        if (!selectedAnnoForSheet) return;
+        const charObj = availableChars.find(c => c.id === charId) || { id: charId, name: "Char" };
+        const quoteText = selectedAnnoForSheet.quote || selectedAnnoForSheet.content;
+
+        const newComment = {
+            id: "c_" + Date.now(),
+            author: charObj.name,
+            isAi: true,
+            characterId: charId,
+            text: `对这段“${quoteText.slice(0, 15)}...”很有感触，字里行间流露出的真挚让人沉思。`,
+            createdAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+        };
+
+        const existingComments = selectedAnnoForSheet.comments || [
+            { id: "c0", author: selectedAnnoForSheet.characterName, isAi: true, characterId: selectedAnnoForSheet.characterId, text: selectedAnnoForSheet.content, createdAt: selectedAnnoForSheet.createdAt }
+        ];
+
+        const updatedAnno: ReadingAnnotation = {
+            ...selectedAnnoForSheet,
+            comments: [...existingComments, newComment]
+        };
+
+        await saveAnnotation(updatedAnno);
+        setSelectedAnnoForSheet(updatedAnno);
+        setAnnotations(prev => prev.map(a => a.id === updatedAnno.id ? updatedAnno : a));
+    };
     const loadExistingAnnotationsForItems = useCallback(async (items: ParagraphRef[]) => {
         const chapterIndexes = [...new Set(items.map((item) => item.chapterIndex))];
         const itemKeys = new Set(items.map((item) => `${item.chapterIndex}:${item.paragraphIndex}`));
@@ -2745,6 +2779,50 @@ export function ReadingViewer({ book, onBack }: Props) {
                     </div>
                 </ContentDialog>
             )}
+            {selectedAnnoForSheet && (
+                <div className="fixed inset-0 z-[200] bg-black/40 flex flex-col justify-end" onClick={() => setSelectedAnnoForSheet(null)}>
+                    <div className="bg-white rounded-t-3xl p-5 max-h-[75vh] flex flex-col shadow-2xl text-[#2b2622]" onClick={(e) => e.stopPropagation()}>
+                        <div className="w-9 h-1 bg-[#e3d5c5] rounded-full self-center mb-3" />
+                        <div className="bg-[#fbf9f5] border-l-3 border-[#9e2a2b] p-3 rounded-r-lg text-xs leading-relaxed text-[#2b2622] mb-3">
+                            {selectedAnnoForSheet.quote || selectedAnnoForSheet.content}
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto space-y-2 mb-3">
+                            {(selectedAnnoForSheet.comments || [
+                                { id: "c0", author: selectedAnnoForSheet.characterName, isAi: true, characterId: selectedAnnoForSheet.characterId, text: selectedAnnoForSheet.content, createdAt: selectedAnnoForSheet.createdAt }
+                            ]).map((c, idx) => (
+                                <div key={c.id || idx} className="text-xs pb-2 border-b border-[#f4ece1]">
+                                    <span className={`font-semibold mr-1 ${c.isAi ? "text-[#6b5b95]" : "text-[#3b6064]"}`}>
+                                        {c.author}:
+                                    </span>
+                                    <span className="text-[#2b2622]">{c.text}</span>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="pt-2 border-t border-[#f4ece1]">
+                            <div className="text-[11px] text-[#8c827a] mb-2">召唤 Char 点评:</div>
+                            <div className="flex items-center gap-3 overflow-x-auto pb-1">
+                                {availableChars.map((char) => (
+                                    <button
+                                        key={char.id}
+                                        type="button"
+                                        onClick={() => handleSummonCharForAnno(char.id)}
+                                        className="flex flex-col items-center gap-1 border-none bg-transparent cursor-pointer flex-shrink-0"
+                                    >
+                                        <img
+                                            src={char.avatar || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%238c827a'><circle cx='12' cy='8' r='4'/><path d='M12 14c-4 0-7 2-7 4v2h14v-2c0-2-3-4-7-4z'/></svg>"}
+                                            className="w-9 h-9 rounded-full object-cover border-2 border-[#e3d5c5]"
+                                        />
+                                        <span className="text-[10px] text-[#2b2622]">{char.name}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {showNavigationDialog && (
                 <>
                     <div className="reading-nav-backdrop" onClick={() => setShowNavigationDialog(false)} />
