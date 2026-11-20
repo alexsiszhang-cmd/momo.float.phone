@@ -342,14 +342,6 @@ export function ReadingViewer({ book, onBack }: Props) {
     const [flipAnim, setFlipAnim] = useState<{ direction: 'forward' | 'backward'; items: TxtPageItem[] } | null>(null);
 
     const [enrichedContacts, setEnrichedContacts] = useState<(ReturnType<typeof loadChatContacts>[number] & { char: Character })[]>([]);
-    const [selectedAnnoForSheet, setSelectedAnnoForSheet] = useState<ReadingAnnotation | null>(null);
-
-    const availableChars = useMemo(() => {
-        const charMap = new Map<string, Character>();
-        enrichedContacts.forEach(c => { if (c.char) charMap.set(c.char.id, c.char); });
-        loadCharacters().forEach(c => { if (!charMap.has(c.id)) charMap.set(c.id, c); });
-        return Array.from(charMap.values());
-    }, [enrichedContacts]);
 
     useEffect(() => {
         const chars = loadCharacters();
