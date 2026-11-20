@@ -957,38 +957,68 @@ export function ReadingViewer({ book, onBack }: Props) {
     const [annotationError, setAnnotationError] = useState<string | null>(null);
     const [selectedAnnoForSheet, setSelectedAnnoForSheet] = useState<ReadingAnnotation | null>(null);
     const [availableChars, setAvailableChars] = useState<Character[]>([]);
+    const [showSummonModal, setShowSummonModal] = useState(false);
+    const [selectedSummonChars, setSelectedSummonChars] = useState<string[]>([]);
+    const [isSummoning, setIsSummoning] = useState(false);
 
     useEffect(() => {
         setAvailableChars(loadCharacters());
     }, []);
 
-    const handleSummonCharForAnno = async (charId: string) => {
-        if (!selectedAnnoForSheet) return;
-        const charObj = availableChars.find(c => c.id === charId) || { id: charId, name: "Char" };
-        const quoteText = selectedAnnoForSheet.quote || selectedAnnoForSheet.content;
+    const fullQuote = useMemo(() => {
+        if (!selectedAnnoForSheet) return "";
+        const chapter = chapters[selectedAnnoForSheet.chapterIndex];
+        if (chapter && typeof selectedAnnoForSheet.paragraphIndex === "number") {
+            const pText = chapter.paragraphs[selectedAnnoForSheet.paragraphIndex];
+            if (pText) {
+                const start = typeof selectedAnnoForSheet.startOff === "number" ? selectedAnnoForSheet.startOff : 0;
+                const end = typeof selectedAnnoForSheet.endOff === "number" && selectedAnnoForSheet.endOff > start
+                    ? selectedAnnoForSheet.endOff
+                    : pText.length;
+                const sliced = pText.slice(start, end);
+                if (sliced.trim()) return sliced;
+            }
+        }
+        return selectedAnnoForSheet.quote || selectedAnnoForSheet.content || "正文划线原句";
+    }, [selectedAnnoForSheet, chapters]);
 
-        const newComment = {
-            id: "c_" + Date.now(),
-            author: charObj.name,
-            isAi: true,
-            characterId: charId,
-            text: `对这段“${quoteText.slice(0, 15)}...”很有感触，字里行间流露出的真挚让人沉思。`,
-            createdAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-        };
+    const handleBatchSummonCharsForAnno = useCallback(async (charIds: string[]) => {
+        if (!selectedAnnoForSheet || charIds.length === 0) return;
+        setIsSummoning(true);
+        try {
+            const quoteText = fullQuote || selectedAnnoForSheet.quote || selectedAnnoForSheet.content;
+            const newComments = charIds.map((charId, index) => {
+                const charObj = availableChars.find(c => c.id === charId) || { id: charId, name: "Char" };
+                return {
+                    id: `c_${Date.now()}_${index}_${Math.random().toString(36).slice(2, 6)}`,
+                    author: charObj.name,
+                    isAi: true,
+                    characterId: charId,
+                    text: `对这段“${quoteText.slice(0, 15)}${quoteText.length > 15 ? "..." : ""}”很有感触，字里行间流露出的真挚让人沉思。`,
+                    createdAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                };
+            });
 
-        const existingComments = selectedAnnoForSheet.comments || [
-            { id: "c0", author: selectedAnnoForSheet.characterName, isAi: true, characterId: selectedAnnoForSheet.characterId, text: selectedAnnoForSheet.content, createdAt: selectedAnnoForSheet.createdAt }
-        ];
+            const existingComments = selectedAnnoForSheet.comments || [
+                { id: "c0", author: selectedAnnoForSheet.characterName, isAi: true, characterId: selectedAnnoForSheet.characterId, text: selectedAnnoForSheet.content, createdAt: selectedAnnoForSheet.createdAt }
+            ];
 
-        const updatedAnno: ReadingAnnotation = {
-            ...selectedAnnoForSheet,
-            comments: [...existingComments, newComment]
-        };
+            const updatedAnno: ReadingAnnotation = {
+                ...selectedAnnoForSheet,
+                comments: [...existingComments, ...newComments]
+            };
 
-        await saveAnnotation(updatedAnno);
-        setSelectedAnnoForSheet(updatedAnno);
-        setAnnotations(prev => prev.map(a => a.id === updatedAnno.id ? updatedAnno : a));
-    };
+            await saveAnnotation(updatedAnno);
+            setSelectedAnnoForSheet(updatedAnno);
+            setAnnotations(prev => prev.map(a => a.id === updatedAnno.id ? updatedAnno : a));
+            setShowSummonModal(false);
+            setSelectedSummonChars([]);
+        } catch (err) {
+            console.error("[Reading] Batch summon error:", err);
+        } finally {
+            setIsSummoning(false);
+        }
+    }, [selectedAnnoForSheet, fullQuote, availableChars]);
     const loadExistingAnnotationsForItems = useCallback(async (items: ParagraphRef[]) => {
         const chapterIndexes = [...new Set(items.map((item) => item.chapterIndex))];
         const itemKeys = new Set(items.map((item) => `${item.chapterIndex}:${item.paragraphIndex}`));
@@ -2651,24 +2681,35 @@ export function ReadingViewer({ book, onBack }: Props) {
                         <div className="w-9 h-1 bg-[#e3d5c5] rounded-full self-center mb-2" />
                         <div className="flex items-center justify-between mb-2">
                             <span className="text-xs font-semibold text-[#8c827a]">划线与批注</span>
-                            <button
-                                type="button"
-                                className="text-xs text-[#b84e4e] font-medium hover:underline bg-transparent border-none cursor-pointer"
-                                onClick={async () => {
-                                    await handleDeleteReadingAnnotation(selectedAnnoForSheet.id);
-                                    setSelectedAnnoForSheet(null);
-                                }}
-                            >
-                                删除划线
-                            </button>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    type="button"
+                                    className="text-xs text-[#3b6064] font-medium hover:underline bg-transparent border-none cursor-pointer flex items-center gap-1"
+                                    onClick={() => {
+                                        setSelectedSummonChars([]);
+                                        setShowSummonModal(true);
+                                    }}
+                                >
+                                    <Bot size={14} />
+                                    <span>召唤Char点评</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    className="text-xs text-[#b84e4e] font-medium hover:underline bg-transparent border-none cursor-pointer"
+                                    onClick={async () => {
+                                        await handleDeleteReadingAnnotation(selectedAnnoForSheet.id);
+                                        setSelectedAnnoForSheet(null);
+                                    }}
+                                >
+                                    删除划线
+                                </button>
+                            </div>
                         </div>
-                        <div className="bg-[#fbf9f5] border-l-3 border-[#9e2a2b] p-3 rounded-r-lg text-xs leading-relaxed text-[#2b2622] mb-3">
-                            {selectedAnnoForSheet.quote && selectedAnnoForSheet.quote !== selectedAnnoForSheet.content
-                                ? selectedAnnoForSheet.quote
-                                : selectedAnnoForSheet.quote || "正文划线原句"}
+                        <div className="bg-[#fbf9f5] border-l-3 border-[#9e2a2b] p-3 rounded-r-lg text-xs leading-relaxed text-[#2b2622] mb-3 max-h-40 overflow-y-auto break-words whitespace-pre-wrap select-text">
+                            {fullQuote}
                         </div>
 
-                        <div className="flex-1 overflow-y-auto space-y-2 mb-3">
+                        <div className="flex-1 overflow-y-auto space-y-2 mb-1">
                             {(selectedAnnoForSheet.comments || [
                                 { id: "c0", author: selectedAnnoForSheet.characterName, isAi: true, characterId: selectedAnnoForSheet.characterId, text: selectedAnnoForSheet.content, createdAt: selectedAnnoForSheet.createdAt }
                             ]).map((c, idx) => (
@@ -2680,28 +2721,84 @@ export function ReadingViewer({ book, onBack }: Props) {
                                 </div>
                             ))}
                         </div>
+                    </div>
+                </div>
+            )}
 
-                        <div className="pt-2 border-t border-[#f4ece1]">
-                            <div className="text-[11px] text-[#8c827a] mb-2">召唤 Char 点评:</div>
-                            <div className="flex items-center gap-3 overflow-x-auto pb-1">
-                                {availableChars.map((char) => (
+            {showSummonModal && (
+                <ContentDialog
+                    title="召唤 Char 点评"
+                    confirmLabel={isSummoning ? "召唤中..." : `确认召唤 (${selectedSummonChars.length})`}
+                    cancelLabel="取消"
+                    confirmDisabled={selectedSummonChars.length === 0 || isSummoning}
+                    onConfirm={() => handleBatchSummonCharsForAnno(selectedSummonChars)}
+                    onCancel={() => {
+                        if (!isSummoning) {
+                            setShowSummonModal(false);
+                            setSelectedSummonChars([]);
+                        }
+                    }}
+                >
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between text-xs text-[#8c827a]">
+                            <span>选择参与点评的角色（可多选）</span>
+                            <button
+                                type="button"
+                                className="text-xs text-[#3b6064] font-medium bg-transparent border-none cursor-pointer hover:underline"
+                                onClick={() => {
+                                    if (selectedSummonChars.length === availableChars.length) {
+                                        setSelectedSummonChars([]);
+                                    } else {
+                                        setSelectedSummonChars(availableChars.map(c => c.id));
+                                    }
+                                }}
+                            >
+                                {selectedSummonChars.length === availableChars.length ? "取消全选" : "全选"}
+                            </button>
+                        </div>
+                        <div className="grid grid-cols-4 gap-3 max-h-60 overflow-y-auto p-1">
+                            {availableChars.map((char) => {
+                                const isSelected = selectedSummonChars.includes(char.id);
+                                return (
                                     <button
                                         key={char.id}
                                         type="button"
-                                        onClick={() => handleSummonCharForAnno(char.id)}
-                                        className="flex flex-col items-center gap-1 border-none bg-transparent cursor-pointer flex-shrink-0"
+                                        onClick={() => {
+                                            setSelectedSummonChars(prev =>
+                                                prev.includes(char.id)
+                                                    ? prev.filter(id => id !== char.id)
+                                                    : [...prev, char.id]
+                                            );
+                                        }}
+                                        className={`flex flex-col items-center gap-1.5 p-2 rounded-xl transition-all border-none cursor-pointer relative ${
+                                            isSelected ? "bg-[#f3ede2]" : "bg-transparent hover:bg-[#fcfaf7]"
+                                        }`}
                                     >
-                                        <img
-                                            src={char.avatar || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%238c827a'><circle cx='12' cy='8' r='4'/><path d='M12 14c-4 0-7 2-7 4v2h14v-2c0-2-3-4-7-4z'/></svg>"}
-                                            className="w-9 h-9 rounded-full object-cover border-2 border-[#e3d5c5]"
-                                        />
-                                        <span className="text-[10px] text-[#2b2622]">{char.name}</span>
+                                        <div className="relative">
+                                            <img
+                                                src={char.avatar || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%238c827a'><circle cx='12' cy='8' r='4'/><path d='M12 14c-4 0-7 2-7 4v2h14v-2c0-2-3-4-7-4z'/></svg>"}
+                                                className={`w-11 h-11 rounded-full object-cover border-2 transition-all ${
+                                                    isSelected ? "border-[#9e2a2b] shadow-sm scale-105" : "border-[#e3d5c5]"
+                                                }`}
+                                                alt={char.name}
+                                            />
+                                            {isSelected && (
+                                                <div className="absolute -top-1 -right-1 w-4 h-4 bg-[#9e2a2b] text-white rounded-full flex items-center justify-center text-[10px] font-bold shadow">
+                                                    ✓
+                                                </div>
+                                            )}
+                                        </div>
+                                        <span className={`text-[11px] truncate w-full text-center ${
+                                            isSelected ? "font-semibold text-[#9e2a2b]" : "text-[#2b2622]"
+                                        }`}>
+                                            {char.name}
+                                        </span>
                                     </button>
-                                ))}
-                            </div>
+                                );
+                            })}
                         </div>
                     </div>
-                </div>
+                </ContentDialog>
             )}
 
             {showNavigationDialog && (
