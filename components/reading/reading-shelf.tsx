@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { ChevronLeft, Palette, Settings } from "lucide-react";
+import { ChevronLeft, Palette, Settings, Search, LayoutGrid, Layers, BarChart2, Plus } from "lucide-react";
+import { READING_THEMES, type ReadingThemeId } from "@/lib/reading-appearance";
 import { loadBooks, addBook, deleteBook, saveChapters, loadProgress, saveRawFile, updateBook, loadAllBookAnnotations, loadAllAnnotations, saveAnnotation } from "@/lib/reading-storage";
 import type { ReadingAnnotation } from "@/lib/reading-types";
 import { decodeTxtArrayBuffer, parseTxtContent, parseEpubFile, PDF_PAGES_PER_CHAPTER } from "@/lib/reading-parser";
@@ -110,6 +111,12 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
     const [annoSearch, setAnnoSearch] = useState("");
     const [detailAnnos, setDetailAnnos] = useState<ReadingAnnotation[]>([]);
     const [allAnnos, setAllAnnos] = useState<ReadingAnnotation[]>([]);
+    const [viewMode, setViewMode] = useState<"carousel" | "grid">("carousel");
+    const [carouselIndex, setCarouselIndex] = useState(0);
+    const [gridFilter, setGridFilter] = useState<"all" | "reading" | "unread" | "finished">("all");
+    const [activeThemeId, setActiveThemeId] = useState<ReadingThemeId>(appearance.themeId || "paper");
+    const [showThemeDrawer, setShowThemeDrawer] = useState(false);
+    const [showSearchBar, setShowSearchBar] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -727,129 +734,237 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
         );
     }
 
+    const activeThemeObj = READING_THEMES.find(t => t.id === activeThemeId) || READING_THEMES[0];
+
+    const gridFilteredBooks = filteredBooks.filter(b => {
+        if (gridFilter === "all") return true;
+        const p = progressMap[b.id];
+        const pct = p?.hasProgress ? Math.round((p.fraction ?? ((p.chapterIndex + 1) / (p.total || 1))) * 100) : 0;
+        if (gridFilter === "unread") return pct === 0;
+        if (gridFilter === "finished") return pct >= 100;
+        if (gridFilter === "reading") return pct > 0 && pct < 100;
+        return true;
+    });
+
+    const activeCarouselBook = filteredBooks.length > 0
+        ? filteredBooks[Math.abs(carouselIndex) % filteredBooks.length]
+        : null;
+
     return (
-        <div className="reading-app-surface absolute inset-0 z-[100] flex flex-col">
-            <header className="reading-shelf-header">
+        <div
+            className="reading-app-surface absolute inset-0 z-[100] flex flex-col transition-colors duration-300"
+            style={{ backgroundColor: activeThemeObj.bg, color: activeThemeObj.textColor }}
+        >
+            <header className="reading-shelf-header border-b" style={{ borderColor: activeThemeObj.borderColor }}>
                 <div className="reading-shelf-appbar">
-                    <button className="reading-shelf-back" type="button" onClick={onClose} aria-label="返回">
+                    <button className="reading-shelf-back" type="button" onClick={onClose} aria-label="返回" style={{ color: activeThemeObj.textColor }}>
                         <ChevronLeft size={22} strokeWidth={2.5} />
                     </button>
-                    <div className="reading-shelf-actions">
-                        <button className="reading-shelf-action-btn" type="button" onClick={() => setShowInteractionDialog(true)} aria-label="阅读设置">
-                            <Settings size={16} strokeWidth={1.7} />
+                    {/* 右上角线条图标组 (拒绝 Emoji) */}
+                    <div className="reading-shelf-actions flex items-center gap-1">
+                        <button className="reading-shelf-action-btn" type="button" onClick={() => setShowSearchBar(!showSearchBar)} aria-label="搜索" style={{ color: activeThemeObj.textColor }}>
+                            <Search size={18} strokeWidth={1.8} />
                         </button>
-                        <button className="reading-shelf-action-btn" type="button" onClick={() => setShowAppearanceDialog(true)} aria-label="阅读外观">
-                            <Palette size={16} strokeWidth={1.7} />
+                        <button className="reading-shelf-action-btn" type="button" onClick={() => setViewMode(viewMode === "carousel" ? "grid" : "carousel")} aria-label="切换视图" style={{ color: activeThemeObj.textColor }}>
+                            {viewMode === "carousel" ? <LayoutGrid size={18} strokeWidth={1.8} /> : <Layers size={18} strokeWidth={1.8} />}
                         </button>
-                        <label className="reading-shelf-action-btn reading-shelf-action-primary" style={{ cursor: "pointer" }}>
-                            <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M12 5v14M5 12h14" />
-                            </svg>
+                        <button className="reading-shelf-action-btn" type="button" onClick={() => setShowStatsView(true)} aria-label="共读统计" style={{ color: activeThemeObj.textColor }}>
+                            <BarChart2 size={18} strokeWidth={1.8} />
+                        </button>
+                        <button className="reading-shelf-action-btn" type="button" onClick={() => setShowThemeDrawer(true)} aria-label="色彩美化" style={{ color: activeThemeObj.textColor }}>
+                            <Palette size={18} strokeWidth={1.8} />
+                        </button>
+                        <button className="reading-shelf-action-btn" type="button" onClick={() => setShowInteractionDialog(true)} aria-label="阅读设置" style={{ color: activeThemeObj.textColor }}>
+                            <Settings size={18} strokeWidth={1.8} />
+                        </button>
+                        <label className="reading-shelf-action-btn reading-shelf-action-primary cursor-pointer">
+                            <Plus size={18} strokeWidth={2} />
                             <input ref={fileRef} type="file" accept=".txt,.epub,.pdf" onChange={handleFileUpload} className="hidden" disabled={importing} />
                         </label>
                     </div>
                 </div>
                 <div className="reading-shelf-title-stack flex items-center justify-between pr-4">
                     <div>
-                        <h1 className="reading-shelf-title">书架</h1>
-                        <span className="reading-shelf-subtitle">{books.length} BOOKS IN YOUR LIBRARY</span>
+                        <h1 className="reading-shelf-title" style={{ color: activeThemeObj.textColor }}>书房</h1>
+                        <span className="reading-shelf-subtitle" style={{ color: activeThemeObj.subtextColor }}>{books.length} BOOKS IN YOUR LIBRARY</span>
                     </div>
-                    <span
-                        onClick={() => setShowStatsView(true)}
-                        className="text-xs font-semibold text-[#8a5a2b] bg-[#f4ece1] px-3 py-1.5 rounded-full cursor-pointer hover:bg-[#e8dcce] transition-colors"
-                    >
-                        共读记录 &gt;
-                    </span>
                 </div>
             </header>
 
-            <div className="reading-shelf-body">
-                <div className="px-4 pb-3">
-                    <div className="reading-search-bar">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                        <input
-                            value={search}
-                            onChange={e => setSearch(e.target.value)}
-                            placeholder={`搜索 ${books.length} 本书`}
-                            className="reading-search-input"
-                        />
-                    </div>
-                </div>
-
-                {importing && (
-                    <div className="text-center ts-13 py-2" style={{ color: "var(--reading-warm-brown, #8a5a2b)" }}>
-                        {importStatus ? `导入中：${importStatus}` : "导入中..."}
-                    </div>
-                )}
-                {importError && (
-                    <div className="modal-overlay" data-ui="modal" onClick={dismissImportError}>
-                        <div className="reading-import-error-card reading-import-error-dialog" onClick={(e) => e.stopPropagation()}>
-                            <button type="button" className="reading-import-error-close" onClick={dismissImportError} aria-label="关闭">✕</button>
-                            <div className="reading-import-error-kicker">IMPORT ERROR</div>
-                            <div className="ts-13 font-medium" style={{ color: "#2f261f" }}>导入失败</div>
-                            <div className="ts-12 mt-1" style={{ color: "#7f7266" }}>{importError.summary}</div>
-                            {importError.detail && (
-                                <div className="ts-11 mt-2 break-all reading-import-error-detail" style={{ color: "#a39487" }}>{importError.detail}</div>
-                            )}
-                            <button type="button" className="reading-import-error-ok" onClick={dismissImportError}>知道了</button>
+            <div className="reading-shelf-body flex-1 overflow-y-auto p-4">
+                {showSearchBar && (
+                    <div className="mb-4">
+                        <div className="reading-search-bar flex items-center px-3 py-1.5 rounded-full" style={{ backgroundColor: activeThemeObj.cardBg, borderColor: activeThemeObj.borderColor }}>
+                            <Search size={14} style={{ color: activeThemeObj.subtextColor }} />
+                            <input
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                                placeholder={`搜索 ${books.length} 本书`}
+                                className="reading-search-input bg-transparent border-none outline-none text-xs ml-2 w-full"
+                                style={{ color: activeThemeObj.textColor }}
+                            />
                         </div>
                     </div>
                 )}
 
                 {filteredBooks.length === 0 ? (
-                    <div className="py-10 text-center ts-14" style={{ color: "var(--reading-warm-ink-tertiary, #999)" }}>
-                        {books.length === 0 ? "还没有书籍，点右上角 + 导入" : "没有匹配的书籍"}
+                    <div className="py-12 text-center text-xs" style={{ color: activeThemeObj.subtextColor }}>
+                        {books.length === 0 ? "还没导入书籍，点击右上角 + 开始阅读" : "没有匹配的书籍"}
+                    </div>
+                ) : viewMode === "carousel" && activeCarouselBook ? (
+                    /* 模式 A：3D Carousel 轮播模式 (复刻图 1) */
+                    <div className="flex flex-col items-center justify-between min-h-[70vh] py-4">
+                        {/* 顶部三栏分类切换 */}
+                        <div className="flex items-center gap-1 bg-[#f4ece1]/40 p-1 rounded-full text-xs mb-6">
+                            <span className="px-3 py-1 rounded-full font-medium bg-white text-[#2b2622] shadow-sm">在读</span>
+                            <span className="px-3 py-1 rounded-full text-[#8c827a]">未读</span>
+                            <span className="px-3 py-1 rounded-full text-[#8c827a]">已读</span>
+                        </div>
+
+                        {/* 3D 轮播舞台 */}
+                        <div className="relative w-full flex items-center justify-center my-4 h-64">
+                            <button
+                                type="button"
+                                onClick={() => setCarouselIndex(prev => prev - 1)}
+                                className="absolute left-2 z-20 p-2 text-xs opacity-60 hover:opacity-100"
+                                style={{ color: activeThemeObj.textColor }}
+                            >
+                                &lt;
+                            </button>
+
+                            <div
+                                className="relative flex items-center justify-center cursor-pointer transition-all duration-300"
+                                onClick={() => setDetailBook(activeCarouselBook)}
+                            >
+                                <div
+                                    className="w-40 h-56 rounded-xl shadow-2xl overflow-hidden transform transition-all duration-300 border"
+                                    style={{ borderColor: activeThemeObj.borderColor, backgroundColor: activeThemeObj.cardBg }}
+                                >
+                                    {activeCarouselBook.coverUrl ? (
+                                        <img src={activeCarouselBook.coverUrl} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="p-4 flex flex-col justify-between h-full text-center">
+                                            <span className="font-bold text-base mt-2" style={{ color: activeThemeObj.textColor }}>{activeCarouselBook.title}</span>
+                                            <span className="text-xs" style={{ color: activeThemeObj.subtextColor }}>{activeCarouselBook.author || "未知作者"}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => setCarouselIndex(prev => prev + 1)}
+                                className="absolute right-2 z-20 p-2 text-xs opacity-60 hover:opacity-100"
+                                style={{ color: activeThemeObj.textColor }}
+                            >
+                                &gt;
+                            </button>
+                        </div>
+
+                        {/* 图书标头与底部《阅读进度 & 我们的共读卡片》 */}
+                        <div className="w-full text-center mt-2">
+                            <h2 className="text-xl font-bold" style={{ color: activeThemeObj.textColor }}>{activeCarouselBook.title}</h2>
+                            <p className="text-xs mt-1" style={{ color: activeThemeObj.subtextColor }}>{activeCarouselBook.author || "未知作者"}</p>
+
+                            {/* 浮动共读进度卡片 */}
+                            <div className="mt-6 p-4 rounded-2xl border shadow-sm text-left flex items-center justify-between" style={{ backgroundColor: activeThemeObj.cardBg, borderColor: activeThemeObj.borderColor }}>
+                                <div>
+                                    <div className="text-xs font-semibold" style={{ color: activeThemeObj.textColor }}>阅读进度</div>
+                                    <div className="text-xs mt-1" style={{ color: activeThemeObj.subtextColor }}>
+                                        {progressMap[activeCarouselBook.id]?.hasProgress ? `已读 ${Math.round((progressMap[activeCarouselBook.id].fraction || 0) * 100)}%` : "尚未开始"}
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => onOpenBook(activeCarouselBook)}
+                                    className="px-5 py-2 rounded-full text-xs font-semibold text-white shadow-sm"
+                                    style={{ backgroundColor: activeThemeObj.accentColor }}
+                                >
+                                    继续阅读
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 ) : (
-                    <div className="reading-book-list">
-                        {filteredBooks.map(book => {
-                            const prog = progressMap[book.id];
-                            const fallbackFraction = prog?.hasProgress && prog.total > 0
-                                ? Math.min(1, Math.max(0, (prog.chapterIndex + 1) / prog.total))
-                                : 0;
-                            const progressFraction = prog?.hasProgress
-                                ? Math.min(1, Math.max(0, prog.fraction ?? fallbackFraction))
-                                : 0;
-                            const progressPct = Math.round(progressFraction * 100);
-                            const progressMeta = !prog?.hasProgress
-                                ? null
-                                : prog.scope === "book" && prog.current && prog.pageTotal
-                                    ? `${prog.current}/${prog.pageTotal}`
-                                    : prog.current && prog.pageTotal
-                                        ? `第${Math.max(1, prog.chapterIndex + 1)}章 · ${prog.current}/${prog.pageTotal}`
-                                        : `第${Math.max(1, prog.chapterIndex + 1)}/${Math.max(1, prog.total)}章`;
-                            const gradient = coverGradients[book.title.length % coverGradients.length];
-                            const layout = coverLayouts[(book.title.length + (book.author?.length || 0)) % coverLayouts.length];
-                            return (
-                                <div key={book.id} className="reading-list-item" onClick={() => setDetailBook(book)}>
-                                    <div className={`reading-list-cover reading-list-cover--${gradient} reading-list-cover--${layout}`}>
-                                        <span className="reading-list-cover-author">{book.author || ""}</span>
-                                        <span className="reading-list-cover-title">{book.title}</span>
-                                    </div>
-                                    <div className="reading-list-info">
-                                        <span className="reading-list-title">{book.title}</span>
-                                        {book.author && <span className="reading-list-author">{book.author}</span>}
-                                        <div className="reading-list-meta">
-                                            <span className="reading-list-badge">{formatBadge(book.format)}</span>
-                                            <span>{book.totalChapters}章</span>
-                                        </div>
-                                        <div className="reading-list-progress-row">
-                                            <span className="reading-list-progress-label">
-                                                {prog?.hasProgress ? `阅读进度 ${progressPct}%` : "未开始阅读"}
-                                            </span>
-                                            {progressMeta && (
-                                                <span className="reading-list-progress-meta">
-                                                    {progressMeta}
-                                                </span>
+                    /* 模式 B：3 列分组网格模式 (复刻图 2) */
+                    <div>
+                        {/* 顶部分组分类 */}
+                        <div className="flex items-center gap-2 mb-4 text-xs">
+                            {(["all", "reading", "unread", "finished"] as const).map(f => (
+                                <button
+                                    key={f}
+                                    type="button"
+                                    onClick={() => setGridFilter(f)}
+                                    className={`px-3 py-1.5 rounded-full font-medium border transition-all ${gridFilter === f ? "font-bold shadow-sm" : "opacity-70"}`}
+                                    style={{
+                                        backgroundColor: gridFilter === f ? activeThemeObj.accentColor : activeThemeObj.cardBg,
+                                        color: gridFilter === f ? "#ffffff" : activeThemeObj.textColor,
+                                        borderColor: activeThemeObj.borderColor
+                                    }}
+                                >
+                                    {f === "all" ? "全部" : f === "reading" ? "在读" : f === "unread" ? "未读" : "已读"}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* 3 列矩阵 */}
+                        <div className="grid grid-cols-3 gap-3">
+                            {gridFilteredBooks.map(book => {
+                                const prog = progressMap[book.id];
+                                const pct = prog?.hasProgress ? Math.round((prog.fraction || 0) * 100) : 0;
+                                return (
+                                    <div
+                                        key={book.id}
+                                        onClick={() => setDetailBook(book)}
+                                        className="flex flex-col cursor-pointer group"
+                                    >
+                                        <div className="aspect-[3/4] rounded-xl overflow-hidden border shadow-sm mb-1.5 relative" style={{ backgroundColor: activeThemeObj.cardBg, borderColor: activeThemeObj.borderColor }}>
+                                            {book.coverUrl ? (
+                                                <img src={book.coverUrl} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="p-2 flex flex-col justify-between h-full text-center">
+                                                    <span className="font-bold text-xs mt-1" style={{ color: activeThemeObj.textColor }}>{book.title}</span>
+                                                    <span className="text-[10px]" style={{ color: activeThemeObj.subtextColor }}>{book.author}</span>
+                                                </div>
                                             )}
                                         </div>
-                                        <div className="reading-list-progress-track" aria-hidden="true">
-                                            <div className="reading-list-progress-fill" style={{ width: `${prog?.hasProgress ? progressPct : 0}%` }} />
-                                        </div>
+                                        <span className="text-xs font-semibold truncate" style={{ color: activeThemeObj.textColor }}>{book.title}</span>
+                                        <span className="text-[10px] truncate" style={{ color: activeThemeObj.subtextColor }}>{book.author || "未知作者"}</span>
+                                        <span className="text-[10px] mt-0.5" style={{ color: activeThemeObj.subtextColor }}>{pct > 0 ? `${pct}%` : "未开始"}</span>
                                     </div>
-                                    <button
-                                        className="reading-list-delete"
-                                        onClick={(e) => { e.stopPropagation(); handleDelete(book.id); }}
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* 6 色美化抽屉（剧情组件同款 6 主题色，绝无 Emoji） */}
+            {showThemeDrawer && (
+                <div className="fixed inset-0 z-[200] bg-black/40 flex flex-col justify-end" onClick={() => setShowThemeDrawer(false)}>
+                    <div className="bg-white rounded-t-3xl p-5 max-h-[60vh] flex flex-col shadow-2xl text-[#2b2622]" onClick={(e) => e.stopPropagation()}>
+                        <div className="w-9 h-1 bg-[#e3d5c5] rounded-full self-center mb-4" />
+                        <div className="text-sm font-semibold mb-3">切换色彩主题</div>
+                        <div className="grid grid-cols-3 gap-3 mb-4">
+                            {READING_THEMES.map((theme) => (
+                                <button
+                                    key={theme.id}
+                                    type="button"
+                                    onClick={() => {
+                                        setActiveThemeId(theme.id);
+                                        onSaveAppearance({ ...appearance, themeId: theme.id }, { backgroundFile: null, clearBackground: false, customFontFile: null, clearCustomFont: false });
+                                    }}
+                                    className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 transition-all ${activeThemeId === theme.id ? "border-[#9e2a2b] shadow-sm font-semibold" : "border-[#e3d5c5]/60"}`}
+                                    style={{ backgroundColor: theme.bg }}
+                                >
+                                    <div className="w-6 h-6 rounded-full border border-black/10" style={{ backgroundColor: theme.cardBg }} />
+                                    <span className="text-xs" style={{ color: theme.textColor }}>{theme.name}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
                                     >
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                                             <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
