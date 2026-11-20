@@ -408,6 +408,51 @@ export function ReadingViewer({ book, onBack }: Props) {
         (chaptersLoaded && chapters.length > 0 && Boolean(currentChapter) && !isScrollMode && !txtPagesReadyForCurrentChapter)
     );
 
+    // ── 单击智能选择一整句 ──
+    const selectWholeSentenceAt = useCallback((
+        pText: string,
+        offset: number,
+        pIdx: number,
+        cIdx: number,
+        rect?: DOMRect,
+    ) => {
+        if (!pText) return;
+        const sentenceRegex = /[^。！？!?\n]+[。！？!?]?/g;
+        let match: RegExpExecArray | null;
+        let startOff = 0;
+        let endOff = pText.length;
+        let quote = pText;
+
+        while ((match = sentenceRegex.exec(pText)) !== null) {
+            const s = match.index;
+            const e = s + match[0].length;
+            if (offset >= s && offset <= e) {
+                startOff = s;
+                endOff = e;
+                quote = match[0].trim();
+                break;
+            }
+        }
+
+        setPendingSelection({
+            chapterIndex: cIdx,
+            paragraphIndex: pIdx,
+            startOff,
+            endOff,
+            quote,
+            context: pText,
+        });
+
+        const top = rect ? Math.max(60, rect.top - 12) : window.innerHeight / 2 - 40;
+        const left = rect ? Math.max(80, Math.min(window.innerWidth - 80, rect.left + rect.width / 2)) : window.innerWidth / 2;
+
+        setSelectionToolsPos({
+            left,
+            top,
+            visible: true,
+        });
+    }, []);
+
     // ── 切片高亮渲染助手 ──
     const renderParaContentWithHighlights = useCallback((
         text: string,
@@ -438,7 +483,19 @@ export function ReadingViewer({ book, onBack }: Props) {
             const covering = hlAnnos.filter((a) => a.startOff! <= s && a.endOff! >= e);
 
             if (covering.length === 0) {
-                elements.push(<span key={`seg-${s}-${e}`}>{segText}</span>);
+                elements.push(
+                    <span
+                        key={`seg-${s}-${e}`}
+                        onClick={(evt) => {
+                            if (isHighlightMode) {
+                                evt.stopPropagation();
+                                selectWholeSentenceAt(text, s, paragraphIndex, currentChapterIndex, (evt.currentTarget as HTMLElement).getBoundingClientRect());
+                            }
+                        }}
+                    >
+                        {segText}
+                    </span>
+                );
             } else {
                 const first = covering[0];
                 const color = first.color || "#e9609b";
@@ -496,12 +553,9 @@ export function ReadingViewer({ book, onBack }: Props) {
         const startEl = range.startContainer.nodeType === 3 ? range.startContainer.parentElement : (range.startContainer as HTMLElement);
         const endEl = range.endContainer.nodeType === 3 ? range.endContainer.parentElement : (range.endContainer as HTMLElement);
 
-        const startP = startEl?.closest?.("[data-paragraph-index]") as HTMLElement | null;
-        const endP = endEl?.closest?.("[data-paragraph-index]") as HTMLElement | null;
+        const startP = (startEl?.closest?.("[data-paragraph-index]") || endEl?.closest?.("[data-paragraph-index]")) as HTMLElement | null;
 
-        if (!startP || !endP || startP !== endP) {
-            setSelectionToolsPos((prev) => ({ ...prev, visible: false }));
-            setPendingSelection(null);
+        if (!startP) {
             return;
         }
 
