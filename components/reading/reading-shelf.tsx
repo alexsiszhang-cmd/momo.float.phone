@@ -115,6 +115,12 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
     const [carouselIndex, setCarouselIndex] = useState(0);
     const [gridFilter, setGridFilter] = useState<"all" | "reading" | "unread" | "finished">("all");
     const [activeThemeId, setActiveThemeId] = useState<ReadingThemeId>(appearance.themeId || "paper");
+    useEffect(() => {
+        if (appearance.themeId) {
+            setActiveThemeId(appearance.themeId);
+        }
+    }, [appearance.themeId]);
+    const activeThemeObj = READING_THEMES.find(t => t.id === activeThemeId) || READING_THEMES[0];
     const [showThemeDrawer, setShowThemeDrawer] = useState(false);
     const [showSearchBar, setShowSearchBar] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
@@ -575,27 +581,33 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
         const activeChars = Array.from(activeCharMap.entries());
 
         return (
-            <div className="reading-app-surface absolute inset-0 z-[100] flex flex-col bg-[#f7f4ef] text-[#2b2622]">
-                <header className="flex items-center justify-between px-4 pt-10 pb-3 border-b border-[#e3d5c5]">
-                    <button type="button" onClick={() => setDetailBook(null)} className="p-2 text-[#2b2622]">
+            <div
+                className="reading-app-surface absolute inset-0 z-[100] flex flex-col transition-colors duration-300"
+                style={{ backgroundColor: activeThemeObj.bg, color: activeThemeObj.textColor }}
+            >
+                <header
+                    className="flex items-center justify-between px-4 pt-10 pb-3 border-b"
+                    style={{ backgroundColor: activeThemeObj.bg, borderColor: activeThemeObj.borderColor }}
+                >
+                    <button type="button" onClick={() => setDetailBook(null)} className="p-2" style={{ color: activeThemeObj.textColor }}>
                         <ChevronLeft size={22} strokeWidth={2.5} />
                     </button>
-                    <h1 className="text-base font-semibold tracking-wider">BOOKS</h1>
-                    <button type="button" onClick={() => handleDelete(detailBook.id)} className="p-2 text-[#9e2a2b]">
+                    <h1 className="text-base font-semibold tracking-wider" style={{ color: activeThemeObj.textColor }}>BOOKS</h1>
+                    <button type="button" onClick={() => handleDelete(detailBook.id)} className="p-2" style={{ color: activeThemeObj.accentColor }}>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                         </svg>
                     </button>
                 </header>
 
-                <div className="flex-1 overflow-y-auto p-4">
-                    <div className="bg-white rounded-2xl p-4 mb-4 border border-[#e3d5c5]/50 shadow-sm flex gap-4">
-                        <label className="relative w-24 h-32 rounded-lg overflow-hidden bg-[#e8e2d8] flex-shrink-0 cursor-pointer shadow-md block">
+                <div className="flex-1 overflow-y-auto p-4" style={{ backgroundColor: activeThemeObj.bg }}>
+                    <div className="rounded-2xl p-4 mb-4 border shadow-sm flex gap-4" style={{ backgroundColor: activeThemeObj.cardBg, borderColor: activeThemeObj.borderColor }}>
+                        <label className="relative w-24 h-32 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer shadow-md block" style={{ backgroundColor: activeThemeObj.bg }}>
                             {detailBook.coverUrl ? (
                                 <img src={detailBook.coverUrl} className="w-full h-full object-cover" />
                             ) : (
-                                <div className="flex flex-col items-center justify-center h-full p-2 text-center text-xs text-[#8c827a]">
-                                    <span className="font-bold text-sm mb-1">{detailBook.title}</span>
+                                <div className="flex flex-col items-center justify-center h-full p-2 text-center text-xs" style={{ color: activeThemeObj.subtextColor }}>
+                                    <span className="font-bold text-sm mb-1" style={{ color: activeThemeObj.textColor }}>{detailBook.title}</span>
                                     <span>{detailBook.author}</span>
                                 </div>
                             )}
@@ -605,15 +617,15 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
                         <div className="flex-1 flex flex-col justify-between">
                             <div>
                                 <div className="flex items-center gap-2">
-                                    <span onClick={handleUpdateBookTitle} className="text-lg font-bold text-[#2b2622] cursor-pointer flex items-center gap-1">
+                                    <span onClick={handleUpdateBookTitle} className="text-lg font-bold cursor-pointer flex items-center gap-1" style={{ color: activeThemeObj.textColor }}>
                                         {detailBook.title}
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                                     </span>
-                                    <span className="bg-[#f4ece1] text-[#9e2a2b] text-xs px-2.5 py-0.5 rounded-full font-medium">
+                                    <span className="text-xs px-2.5 py-0.5 rounded-full font-medium" style={{ backgroundColor: activeThemeObj.bg, color: activeThemeObj.accentColor }}>
                                         {autoStatus}
                                     </span>
                                 </div>
-                                <div onClick={handleUpdateBookAuthor} className="text-xs text-[#8c827a] mt-1 cursor-pointer flex items-center gap-1">
+                                <div onClick={handleUpdateBookAuthor} className="text-xs mt-1 cursor-pointer flex items-center gap-1" style={{ color: activeThemeObj.subtextColor }}>
                                     {detailBook.author || "未知作者"}
                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                                 </div>
@@ -622,32 +634,33 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
                             <button
                                 type="button"
                                 onClick={() => onOpenBook(detailBook)}
-                                className="bg-[#9e2a2b] text-white text-xs font-semibold px-5 py-2 rounded-full self-start mt-2 shadow-sm"
+                                className="text-white text-xs font-semibold px-5 py-2 rounded-full self-start mt-2 shadow-sm"
+                                style={{ backgroundColor: activeThemeObj.accentColor }}
                             >
                                 阅读
                             </button>
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-2xl p-4 mb-4 border border-[#e3d5c5]/50 shadow-sm">
-                        <div className="text-sm font-semibold mb-3">我们的共读记录</div>
-                        <div className="flex items-center justify-between pb-3 border-b border-[#f4ece1]">
+                    <div className="rounded-2xl p-4 mb-4 border shadow-sm" style={{ backgroundColor: activeThemeObj.cardBg, borderColor: activeThemeObj.borderColor }}>
+                        <div className="text-sm font-semibold mb-3" style={{ color: activeThemeObj.textColor }}>我们的共读记录</div>
+                        <div className="flex items-center justify-between pb-3 border-b" style={{ borderColor: activeThemeObj.borderColor }}>
                             <div className="flex-1">
-                                <div className="text-xs text-[#8c827a]">上次读到</div>
-                                <div className="text-lg font-bold text-[#2b2622] my-0.5">{realPct}%</div>
-                                <div className="text-[10px] text-[#8c827a]">
+                                <div className="text-xs" style={{ color: activeThemeObj.subtextColor }}>上次读到</div>
+                                <div className="text-lg font-bold my-0.5" style={{ color: activeThemeObj.textColor }}>{realPct}%</div>
+                                <div className="text-[10px]" style={{ color: activeThemeObj.subtextColor }}>
                                     {realProg?.hasProgress ? `已读取至第${realProg.chapterIndex + 1}章` : "尚未开始"}
                                 </div>
                             </div>
-                            <div className="w-px h-9 bg-[#e3d5c5] mx-4" />
+                            <div className="w-px h-9 mx-4" style={{ backgroundColor: activeThemeObj.borderColor }} />
                             <div className="flex-1">
-                                <div className="text-xs text-[#8c827a]">
+                                <div className="text-xs" style={{ color: activeThemeObj.subtextColor }}>
                                     {activeChars.length > 0 ? `${activeChars.map(c => c[1]).join("、")} · 共读` : "尚未有 Char 批注"}
                                 </div>
-                                <div className="text-lg font-bold text-[#2b2622] my-0.5">
+                                <div className="text-lg font-bold my-0.5" style={{ color: activeThemeObj.textColor }}>
                                     {activeChars.length > 0 ? "已介入" : "0%"}
                                 </div>
-                                <div className="text-[10px] text-[#8c827a]">
+                                <div className="text-[10px]" style={{ color: activeThemeObj.subtextColor }}>
                                     {activeChars.length > 0 ? `${activeChars.length} 位 Char 参与` : "尚未开始"}
                                 </div>
                             </div>
@@ -657,72 +670,85 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
                     <button
                         type="button"
                         onClick={handleBatchAIReading}
-                        className="w-full py-2.5 mb-4 rounded-xl text-xs font-semibold text-white bg-[#3b6064] shadow-sm"
+                        className="w-full py-2.5 mb-4 rounded-xl text-xs font-semibold text-white shadow-sm"
+                        style={{ backgroundColor: activeThemeObj.accentColor }}
                     >
                         委托 Char 独立阅读并生成批注
                     </button>
 
-                    <div className="flex bg-[#f4ece1] p-1 rounded-full mb-3">
+                    <div className="flex p-1 rounded-full mb-3" style={{ backgroundColor: activeThemeObj.cardBg, border: `1px solid ${activeThemeObj.borderColor}` }}>
                         <button
                             type="button"
                             onClick={() => setDetailTab("bookmarks")}
-                            className={`flex-1 py-1.5 text-xs rounded-full font-medium transition-all ${detailTab === "bookmarks" ? "bg-white text-[#2b2622] font-semibold shadow-sm" : "text-[#8c827a]"}`}
+                            className="flex-1 py-1.5 text-xs rounded-full font-medium transition-all"
+                            style={{
+                                backgroundColor: detailTab === "bookmarks" ? activeThemeObj.bg : "transparent",
+                                color: detailTab === "bookmarks" ? activeThemeObj.textColor : activeThemeObj.subtextColor,
+                                fontWeight: detailTab === "bookmarks" ? "bold" : "normal"
+                            }}
                         >
                             书签
                         </button>
                         <button
                             type="button"
                             onClick={() => setDetailTab("annotations")}
-                            className={`flex-1 py-1.5 text-xs rounded-full font-medium transition-all ${detailTab === "annotations" ? "bg-white text-[#2b2622] font-semibold shadow-sm" : "text-[#8c827a]"}`}
+                            className="flex-1 py-1.5 text-xs rounded-full font-medium transition-all"
+                            style={{
+                                backgroundColor: detailTab === "annotations" ? activeThemeObj.bg : "transparent",
+                                color: detailTab === "annotations" ? activeThemeObj.textColor : activeThemeObj.subtextColor,
+                                fontWeight: detailTab === "annotations" ? "bold" : "normal"
+                            }}
                         >
                             批注
                         </button>
                     </div>
 
-                    <div className="flex items-center bg-[#f0eae1] rounded-full px-3 py-1.5 gap-2 mb-3">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                    <div className="flex items-center rounded-full px-3 py-1.5 gap-2 mb-3 border" style={{ backgroundColor: activeThemeObj.cardBg, borderColor: activeThemeObj.borderColor }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: activeThemeObj.subtextColor }}><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
                         <input
                             type="text"
                             value={annoSearch}
                             onChange={(e) => setAnnoSearch(e.target.value)}
                             placeholder="搜索批注、引文、回复..."
-                            className="bg-transparent border-none outline-none text-xs w-full text-[#2b2622]"
+                            className="bg-transparent border-none outline-none text-xs w-full"
+                            style={{ color: activeThemeObj.textColor }}
                         />
                     </div>
 
                     {detailTab === "bookmarks" ? (
-                        <div className="text-center py-8 text-xs text-[#8c827a]">暂无书签，在阅读正文时可点击添加书签</div>
+                        <div className="text-center py-8 text-xs" style={{ color: activeThemeObj.subtextColor }}>暂无书签，在阅读正文时可点击添加书签</div>
                     ) : bookAnnos.length === 0 ? (
-                        <div className="text-center py-8 text-xs text-[#8c827a]">暂无批注记录，点击正文即可开始划线</div>
+                        <div className="text-center py-8 text-xs" style={{ color: activeThemeObj.subtextColor }}>暂无批注记录，点击正文即可开始划线</div>
                     ) : (
                         bookAnnos.map((anno) => (
-                            <div key={anno.id} className="bg-white rounded-xl p-3 mb-3 border border-[#e3d5c5]/50 shadow-sm">
-                                <div className="flex justify-between items-center text-[11px] text-[#8c827a] mb-2">
+                            <div key={anno.id} className="rounded-xl p-3 mb-3 border shadow-sm" style={{ backgroundColor: activeThemeObj.cardBg, borderColor: activeThemeObj.borderColor }}>
+                                <div className="flex justify-between items-center text-[11px] mb-2" style={{ color: activeThemeObj.subtextColor }}>
                                     <span>{anno.chapterTitle || "正文"} · {anno.createdAt}</span>
                                     <span
-                                        className="text-[#9e2a2b] font-medium cursor-pointer"
+                                        className="font-medium cursor-pointer"
+                                        style={{ color: activeThemeObj.accentColor }}
                                         onClick={() => onOpenBook(detailBook)}
                                     >
                                         看原文 &gt;
                                     </span>
                                 </div>
-                                <div className="bg-[#fbf9f5] border-l-2 border-[#9e2a2b] p-2.5 rounded-r-lg text-xs leading-relaxed text-[#2b2622] mb-2">
+                                <div className="p-2.5 rounded-r-lg text-xs leading-relaxed mb-2 border-l-2" style={{ backgroundColor: activeThemeObj.bg, borderColor: activeThemeObj.accentColor, color: activeThemeObj.textColor }}>
                                     {anno.quote || anno.content}
                                 </div>
                                 <div className="space-y-1.5">
                                     {anno.comments && anno.comments.length > 0 ? (
                                         anno.comments.map((c, i) => (
                                             <div key={i} className="text-xs">
-                                                <span className={`font-semibold mr-1 ${c.isAi ? "text-[#6b5b95]" : "text-[#3b6064]"}`}>
+                                                <span className="font-semibold mr-1" style={{ color: activeThemeObj.accentColor }}>
                                                     {c.author}:
                                                 </span>
-                                                <span className="text-[#2b2622]">{c.text}</span>
+                                                <span style={{ color: activeThemeObj.textColor }}>{c.text}</span>
                                             </div>
                                         ))
                                     ) : (
                                         <div className="text-xs">
-                                            <span className="font-semibold mr-1 text-[#6b5b95]">{anno.characterName}:</span>
-                                            <span className="text-[#2b2622]">{anno.content}</span>
+                                            <span className="font-semibold mr-1" style={{ color: activeThemeObj.accentColor }}>{anno.characterName}:</span>
+                                            <span style={{ color: activeThemeObj.textColor }}>{anno.content}</span>
                                         </div>
                                     )}
                                 </div>
@@ -733,8 +759,6 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
             </div>
         );
     }
-
-    const activeThemeObj = READING_THEMES.find(t => t.id === activeThemeId) || READING_THEMES[0];
 
     const gridFilteredBooks = filteredBooks.filter(b => {
         if (gridFilter === "all") return true;
@@ -874,7 +898,10 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
                                     type="button"
                                     onClick={() => {
                                         setActiveThemeId(theme.id);
-                                        onSaveAppearance({ ...appearance, themeId: theme.id }, { backgroundFile: null, clearBackground: false, customFontFile: null, clearCustomFont: false });
+                                        void onSaveAppearance({ ...appearance, themeId: theme.id }, { backgroundFile: null, clearBackground: false, customFontFile: null, clearCustomFont: false });
+                                        if (typeof window !== "undefined") {
+                                            window.dispatchEvent(new Event("reading-appearance-changed"));
+                                        }
                                     }}
                                     className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 transition-all ${activeThemeId === theme.id ? "border-[#9e2a2b] shadow-sm font-semibold" : "border-[#e3d5c5]/60"}`}
                                     style={{ backgroundColor: theme.bg }}

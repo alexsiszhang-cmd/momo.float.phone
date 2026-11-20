@@ -80,6 +80,9 @@ export default function ReadingApp({ onClose }: Props) {
     ) => {
         const normalized = saveReadingAppearance(nextAppearance);
         setAppearance(normalized);
+        if (typeof window !== "undefined") {
+            window.dispatchEvent(new Event("reading-appearance-changed"));
+        }
 
         if (options.clearBackground) {
             await saveReadingBackground(null);

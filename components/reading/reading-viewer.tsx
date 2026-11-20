@@ -28,7 +28,7 @@ import { Toggle } from "@/components/ui/form";
 import { PdfPageRenderer } from "./reading-pdf-viewer";
 import { decodeTxtArrayBuffer, parsePdfPageRange, PDF_PAGES_PER_CHAPTER, parseTxtContent, parseEpubFile } from "@/lib/reading-parser";
 import type { Book, BookChapter, ReadingAnnotation, ReadingProgress } from "@/lib/reading-types";
-import { READING_THEMES } from "@/lib/reading-appearance";
+import { READING_THEMES, loadReadingAppearance } from "@/lib/reading-appearance";
 import type { Character } from "@/lib/character-types";
 import { splitBilingualText } from "@/lib/bilingual-text";
 
@@ -235,11 +235,20 @@ type Props = {
 export function ReadingViewer({ book, onBack }: Props) {
     const isPdf = book.format === "pdf";
     const [readingConfig, setReadingConfig] = useState(() => loadReadingInteractionConfig());
+    const [readingAppearance, setReadingAppearance] = useState(() => loadReadingAppearance());
+
     // 阅读器保持挂载（返回书架不卸载），书架设置页保存后通过事件同步最新配置
     useEffect(() => {
-        const reload = () => setReadingConfig(loadReadingInteractionConfig());
-        window.addEventListener("reading-interaction-config-changed", reload);
-        return () => window.removeEventListener("reading-interaction-config-changed", reload);
+        const reloadConfig = () => setReadingConfig(loadReadingInteractionConfig());
+        const reloadAppearance = () => setReadingAppearance(loadReadingAppearance());
+        window.addEventListener("reading-interaction-config-changed", reloadConfig);
+        window.addEventListener("reading-appearance-changed", reloadAppearance);
+        window.addEventListener("storage", reloadAppearance);
+        return () => {
+            window.removeEventListener("reading-interaction-config-changed", reloadConfig);
+            window.removeEventListener("reading-appearance-changed", reloadAppearance);
+            window.removeEventListener("storage", reloadAppearance);
+        };
     }, []);
     const [chapters, setChapters] = useState<BookChapter[]>([]);
     const [chapterIndex, setChapterIndex] = useState(0);
@@ -333,6 +342,14 @@ export function ReadingViewer({ book, onBack }: Props) {
     const [flipAnim, setFlipAnim] = useState<{ direction: 'forward' | 'backward'; items: TxtPageItem[] } | null>(null);
 
     const [enrichedContacts, setEnrichedContacts] = useState<(ReturnType<typeof loadChatContacts>[number] & { char: Character })[]>([]);
+    const [selectedAnnoForSheet, setSelectedAnnoForSheet] = useState<ReadingAnnotation | null>(null);
+
+    const availableChars = useMemo(() => {
+        const charMap = new Map<string, Character>();
+        enrichedContacts.forEach(c => { if (c.char) charMap.set(c.char.id, c.char); });
+        loadCharacters().forEach(c => { if (!charMap.has(c.id)) charMap.set(c.id, c); });
+        return Array.from(charMap.values());
+    }, [enrichedContacts]);
 
     useEffect(() => {
         const chars = loadCharacters();
