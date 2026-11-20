@@ -129,7 +129,7 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
     const [showSearchBar, setShowSearchBar] = useState(false);
     const [showDelegateModal, setShowDelegateModal] = useState(false);
     const [delegateCharId, setDelegateCharId] = useState<string>("");
-    const [delegateBatchSize, setDelegateBatchSize] = useState<number>(20);
+    const [delegateBatchSize, setDelegateBatchSize] = useState<number>(50);
     const [delegateMaxCalls, setDelegateMaxCalls] = useState<number>(1);
     const [delegating, setDelegating] = useState(false);
     const [delegateError, setDelegateError] = useState<string | null>(null);
@@ -885,11 +885,9 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
                                         onChange={(e) => setDelegateBatchSize(Number(e.target.value))}
                                         className="bg-[#f7f4ef] border border-[#e3d5c5] rounded-lg px-2 py-1 text-xs text-[#2b2622] outline-none cursor-pointer"
                                     >
-                                        <option value={5}>5 段</option>
-                                        <option value={10}>10 段</option>
-                                        <option value={20}>20 段</option>
                                         <option value={50}>50 段</option>
-                                        <option value={0}>全章 (无限制)</option>
+                                        <option value={100}>100 段</option>
+                                        <option value={0}>无限制</option>
                                     </select>
                                 </div>
 
@@ -1148,11 +1146,9 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
                                     onChange={(e) => setDelegateBatchSize(Number(e.target.value))}
                                     className="bg-[#f7f4ef] border border-[#e3d5c5] rounded-lg px-2 py-1 text-xs text-[#2b2622] outline-none cursor-pointer"
                                 >
-                                    <option value={5}>5 段</option>
-                                    <option value={10}>10 段</option>
-                                    <option value={20}>20 段</option>
                                     <option value={50}>50 段</option>
-                                    <option value={0}>全章 (无限制)</option>
+                                    <option value={100}>100 段</option>
+                                    <option value={0}>无限制</option>
                                 </select>
                             </div>
 
