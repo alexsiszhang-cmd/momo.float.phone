@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect } from "react";
-import { ChevronDown, ChevronRight, Languages, Menu, Minus, SendHorizontal, X, ZoomIn } from "lucide-react";
+import { Bot, ChevronDown, ChevronRight, Highlighter, Languages, Menu, Minus, PenLine, SendHorizontal, X, ZoomIn } from "lucide-react";
 import {
     loadChapters,
     loadProgress,
@@ -588,6 +588,36 @@ export function ReadingViewer({ book, onBack }: Props) {
         if (!anno) return;
         setSelectedAnnoForSheet(anno);
     }, [pendingSelection, companionId, saveHighlightAnnotation]);
+
+    const handleManualOpenSelectionTools = useCallback(() => {
+        const sel = window.getSelection();
+        const text = sel?.toString().trim();
+
+        if (sel && !sel.isCollapsed && text) {
+            captureTextSelection();
+            return;
+        }
+
+        if (!currentChapter || currentChapter.paragraphs.length === 0) return;
+        const pIdx = 0;
+        const pText = currentChapter.paragraphs[pIdx] || "";
+        const quote = pText.slice(0, Math.min(24, pText.length)) || "本书段落";
+
+        setPendingSelection({
+            chapterIndex,
+            paragraphIndex: pIdx,
+            startOff: 0,
+            endOff: quote.length,
+            quote,
+            context: pText,
+        });
+
+        setSelectionToolsPos({
+            left: Math.max(80, Math.min(window.innerWidth - 80, window.innerWidth / 2)),
+            top: window.innerHeight / 2 - 40,
+            visible: true,
+        });
+    }, [captureTextSelection, chapterIndex, currentChapter]);
 
     const renderTxtPage = (pageIndex: number) => {
         const pageItems = txtPages[pageIndex] || [];
@@ -2222,6 +2252,14 @@ export function ReadingViewer({ book, onBack }: Props) {
                         </button>
                     </div>
                     <div className="reading-footer-actions">
+                        <button
+                            type="button"
+                            className={`reading-footer-icon-btn ${selectionToolsPos.visible ? "is-active" : ""}`}
+                            onClick={handleManualOpenSelectionTools}
+                        >
+                            <Highlighter size={22} strokeWidth={1.7} />
+                            <span>划线工具</span>
+                        </button>
                         <button
                             type="button"
                             className="reading-footer-icon-btn"
