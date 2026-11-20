@@ -406,7 +406,7 @@ export function ReadingViewer({ book, onBack }: Props) {
         const pageItems = txtPages[pageIndex] || [];
         if (pageItems.length === 0) return null;
         return (
-            <div className="reading-page-content">
+            <div className="reading-page-content" style={{ backgroundColor: activeThemeObj.bg, color: activeThemeObj.textColor }}>
                 {pageItems.map((item, i) => (
                     item.kind === "gap"
                         ? <div key={i} className="reading-line-gap" />
@@ -468,7 +468,7 @@ export function ReadingViewer({ book, onBack }: Props) {
     );
 
     const renderStaticPage = (items: TxtPageItem[]) => (
-        <div className="reading-page-content">
+        <div className="reading-page-content" style={{ backgroundColor: activeThemeObj.bg, color: activeThemeObj.textColor }}>
             {items.map((item, i) =>
                 item.kind === "gap"
                     ? <div key={i} className="reading-line-gap" />
@@ -2135,9 +2135,10 @@ export function ReadingViewer({ book, onBack }: Props) {
                 <>
                     <div
                         className={`reading-flip-overlay reading-flip-overlay--${flipAnim.direction}`}
+                        style={{ backgroundColor: activeThemeObj.bg, color: activeThemeObj.textColor }}
                         onAnimationEnd={() => setFlipAnim(null)}
                     >
-                        <div className="reading-flip-overlay-body">
+                        <div className="reading-flip-overlay-body" style={{ backgroundColor: activeThemeObj.bg, color: activeThemeObj.textColor }}>
                             {renderStaticPage(flipAnim.items)}
                         </div>
                     </div>
@@ -2211,6 +2212,7 @@ export function ReadingViewer({ book, onBack }: Props) {
                 ref={scrollRef}
                 className={`relative flex-1 min-h-0 px-4 pt-1 pb-3 ${(isPdf || isScrollMode) ? "overflow-auto" : "overflow-hidden"}`}
                 data-ui="body"
+                style={{ backgroundColor: activeThemeObj.bg, color: activeThemeObj.textColor }}
                 onClick={handleReadingSurfaceClick}
             >
                 {isPdf ? (
