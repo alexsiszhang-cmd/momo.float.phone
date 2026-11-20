@@ -532,7 +532,6 @@ export function ReadingViewer({ book, onBack }: Props) {
                         }}
                     >
                         {segText}
-                        {hasNote && <span className={`reading-bub ${isHuman ? "by-human" : "by-ai"}`} style={{ backgroundColor: color }} />}
                     </span>
                 );
             }
@@ -2773,9 +2772,13 @@ export function ReadingViewer({ book, onBack }: Props) {
                     <button
                         type="button"
                         className="reading-selection-btn"
-                        onClick={() => copyToClipboard(pendingSelection.quote)}
+                        onClick={() => {
+                            setSelectionToolsPos((prev) => ({ ...prev, visible: false }));
+                            setPendingSelection(null);
+                            window.getSelection()?.removeAllRanges();
+                        }}
                     >
-                        复制
+                        退出
                     </button>
                 </div>
             )}

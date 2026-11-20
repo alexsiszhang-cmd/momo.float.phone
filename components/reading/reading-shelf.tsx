@@ -756,7 +756,7 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
                                 fontWeight: detailTab === "bookmarks" ? "bold" : "normal"
                             }}
                         >
-                            书签
+                            章节
                         </button>
                         <button
                             type="button"
@@ -785,7 +785,23 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
                     </div>
 
                     {detailTab === "bookmarks" ? (
-                        <div className="text-center py-8 text-xs" style={{ color: activeThemeObj.subtextColor }}>暂无书签，在阅读正文时可点击添加书签</div>
+                        <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1">
+                            {detailChapters.length === 0 ? (
+                                <div className="text-center py-8 text-xs" style={{ color: activeThemeObj.subtextColor }}>暂无章节数据</div>
+                            ) : (
+                                detailChapters.map((ch, idx) => (
+                                    <div
+                                        key={ch.id || idx}
+                                        className="flex items-center justify-between p-3 rounded-xl border text-xs cursor-pointer"
+                                        style={{ backgroundColor: activeThemeObj.cardBg, borderColor: activeThemeObj.borderColor, color: activeThemeObj.textColor }}
+                                        onClick={() => onOpenBook(detailBook)}
+                                    >
+                                        <span className="font-medium">{ch.title || `第 ${idx + 1} 章`}</span>
+                                        <span className="text-[10px]" style={{ color: activeThemeObj.subtextColor }}>看正文 &gt;</span>
+                                    </div>
+                                ))
+                            )}
+                        </div>
                     ) : bookAnnos.length === 0 ? (
                         <div className="text-center py-8 text-xs" style={{ color: activeThemeObj.subtextColor }}>暂无批注记录，点击正文即可开始划线</div>
                     ) : (
