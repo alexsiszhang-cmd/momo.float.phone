@@ -797,6 +797,65 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
                         ))
                     )}
                 </div>
+
+                {showDelegateModal && (
+                    <ContentDialog
+                        title="委托阅读"
+                        confirmLabel={delegating ? "研读中..." : "开始委托阅读"}
+                        cancelLabel="取消"
+                        onConfirm={() => { void handleConfirmDelegateReading(); }}
+                        onCancel={() => {
+                            if (delegating) return;
+                            setShowDelegateModal(false);
+                        }}
+                    >
+                        <div className="space-y-3 py-1">
+                            <p className="text-xs text-[#8c827a]">
+                                选择一位 AI 角色，委托其独立研读《{detailBook?.title}》并为你撰写感悟批注：
+                            </p>
+                            {availableCharacters.length === 0 ? (
+                                <div className="text-center py-6 text-xs text-[#8c827a]">
+                                    暂无可选的 AI 角色，请先在通讯录中添加角色。
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 gap-2.5 max-h-[40vh] overflow-y-auto p-0.5">
+                                    {availableCharacters.map((char) => {
+                                        const isSelected = delegateCharId === char.id;
+                                        return (
+                                            <button
+                                                key={char.id}
+                                                type="button"
+                                                onClick={() => setDelegateCharId(char.id)}
+                                                className={`flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-all ${
+                                                    isSelected
+                                                        ? "border-[#9e2a2b] bg-[#fbf7f2] shadow-sm"
+                                                        : "border-[#e3d5c5]/60 bg-white hover:bg-[#faf7f2]"
+                                                }`}
+                                            >
+                                                <div className="w-9 h-9 rounded-full overflow-hidden bg-[#efe9e0] flex-shrink-0 flex items-center justify-center font-bold text-xs text-[#666]">
+                                                    {char.avatar ? (
+                                                        <img src={char.avatar} alt={char.name} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        char.name[0]
+                                                    )}
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="text-xs font-semibold text-[#2b2622] truncate">{char.name}</div>
+                                                    <div className="text-[10px] text-[#8c827a] truncate">{char.identity || "AI 共读伙伴"}</div>
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                            {delegateError && (
+                                <div className="text-xs text-[#d9534f] bg-[#fdf2f2] p-2 rounded-lg">
+                                    {delegateError}
+                                </div>
+                            )}
+                        </div>
+                    </ContentDialog>
+                )}
             </div>
         );
     }
