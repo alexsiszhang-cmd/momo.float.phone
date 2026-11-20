@@ -64,9 +64,7 @@ export default function ReadingApp({ onClose }: Props) {
     useEffect(() => {
         hydrateReadingStorage().then(() => setReady(true));
         setAppearance(loadReadingAppearance());
-        void loadReadingBackground().then((blob) => {
-            updateBackgroundUrl(blob ? URL.createObjectURL(blob) : null);
-        });
+        // 背景底图已被用户移除，统一走经典主题系统
         void loadReadingCustomFont().then((blob) => {
             void loadCustomFontFace(blob);
         });
@@ -111,7 +109,7 @@ export default function ReadingApp({ onClose }: Props) {
         ["--reading-font-size" as "--reading-font-size"]: `${appearance.fontSize}px`,
         ["--reading-text-color" as "--reading-text-color"]: appearance.textColor,
         ["--reading-line-height" as "--reading-line-height"]: String(appearance.lineHeight),
-        ["--reading-bg-image" as "--reading-bg-image"]: backgroundUrl ? `url("${backgroundUrl}")` : "none",
+        ["--reading-bg-image" as "--reading-bg-image"]: "none",
     } as CSSProperties;
     const hiddenViewerStyle = {
         position: "absolute",

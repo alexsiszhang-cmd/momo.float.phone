@@ -56,6 +56,7 @@ export const DEFAULT_READING_APPEARANCE: ReadingAppearance = {
     fontSize: 20,
     textColor: "#111111",
     lineHeight: 2.3,
+    themeId: "paper",
 };
 
 function clamp(value: number, min: number, max: number): number {
@@ -75,11 +76,12 @@ function normalizeAppearance(raw: Partial<ReadingAppearance> | null | undefined)
     const textColor = typeof raw?.textColor === "string" && raw.textColor.trim()
         ? raw.textColor.trim()
         : DEFAULT_READING_APPEARANCE.textColor;
+    const themeId = READING_THEMES.some((t) => t.id === raw?.themeId) ? raw!.themeId! : "paper";
     const customFontName = typeof raw?.customFontName === "string" && raw.customFontName.trim()
         ? raw.customFontName.trim()
         : undefined;
 
-    return { fontFamily, fontSize, textColor, lineHeight, customFontName };
+    return { fontFamily, fontSize, textColor, lineHeight, themeId, customFontName };
 }
 
 export function resolveReadingFontFamily(fontFamily: ReadingFontFamilyId, customFontFamily?: string): string {

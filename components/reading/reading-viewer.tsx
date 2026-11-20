@@ -28,6 +28,7 @@ import { Toggle } from "@/components/ui/form";
 import { PdfPageRenderer } from "./reading-pdf-viewer";
 import { decodeTxtArrayBuffer, parsePdfPageRange, PDF_PAGES_PER_CHAPTER, parseTxtContent, parseEpubFile } from "@/lib/reading-parser";
 import type { Book, BookChapter, ReadingAnnotation, ReadingProgress } from "@/lib/reading-types";
+import { READING_THEMES } from "@/lib/reading-appearance";
 import type { Character } from "@/lib/character-types";
 import { splitBilingualText } from "@/lib/bilingual-text";
 
@@ -2116,8 +2117,10 @@ export function ReadingViewer({ book, onBack }: Props) {
         setShowReadingSettings(false);
     };
 
+    const activeThemeObj = READING_THEMES.find(t => t.id === readingAppearance.themeId) || READING_THEMES[0];
+
     return (
-        <div className="reading-app-surface absolute inset-0 z-[100] flex flex-col bg-[var(--c-page-body-bg)]" data-immersive={immersive} style={{ paddingTop: "var(--page-header-safe-top, 48px)" }}>
+        <div className="reading-app-surface absolute inset-0 z-[100] flex flex-col transition-colors duration-300" data-immersive={immersive} style={{ paddingTop: "var(--page-header-safe-top, 48px)", backgroundColor: activeThemeObj.bg, color: activeThemeObj.textColor }}>
             {/* Page flip overlay */}
             {flipAnim && (
                 <>
@@ -2134,7 +2137,7 @@ export function ReadingViewer({ book, onBack }: Props) {
             )}
 
             {/* Header — chapter name + page info */}
-            <header className={`reading-header ${immersive ? "reading-header--immersive" : "reading-header--revealed"}`} data-ui="header">
+            <header className={`reading-header ${immersive ? "reading-header--immersive" : "reading-header--revealed"}`} data-ui="header" style={{ backgroundColor: activeThemeObj.bg, borderColor: activeThemeObj.borderColor, color: activeThemeObj.textColor }}>
                 <div className="reading-header-top">
                     <button onClick={onBack} className="page-back-btn reading-header-back">
                         <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
