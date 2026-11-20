@@ -6,7 +6,11 @@ import { READING_THEMES, type ReadingThemeId } from "@/lib/reading-appearance";
 import { loadBooks, addBook, deleteBook, saveChapters, loadProgress, saveRawFile, updateBook, loadAllBookAnnotations, loadAllAnnotations, saveAnnotation } from "@/lib/reading-storage";
 import type { ReadingAnnotation } from "@/lib/reading-types";
 import { decodeTxtArrayBuffer, parseTxtContent, parseEpubFile, PDF_PAGES_PER_CHAPTER } from "@/lib/reading-parser";
-import { loadReadingInteractionConfig } from "@/lib/reading-storage";
+import { loadReadingInteractionConfig, saveAnnotations } from "@/lib/reading-storage";
+import { loadCharacters } from "@/lib/character-storage";
+import type { Character } from "@/lib/character-types";
+import { generateAnnotations } from "@/lib/reading-engine";
+import { ContentDialog } from "@/components/ui/modal";
 import type { Book, BookChapter } from "@/lib/reading-types";
 import type { ReadingAppearance } from "@/lib/reading-appearance";
 import { ReadingAppearanceDialog } from "./reading-appearance-dialog";
@@ -123,6 +127,11 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
     const activeThemeObj = READING_THEMES.find(t => t.id === activeThemeId) || READING_THEMES[0];
     const [showThemeDrawer, setShowThemeDrawer] = useState(false);
     const [showSearchBar, setShowSearchBar] = useState(false);
+    const [showDelegateModal, setShowDelegateModal] = useState(false);
+    const [delegateCharId, setDelegateCharId] = useState<string>("");
+    const [delegating, setDelegating] = useState(false);
+    const [delegateError, setDelegateError] = useState<string | null>(null);
+    const [availableCharacters, setAvailableCharacters] = useState<Character[]>([]);
     const fileRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -429,33 +438,65 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
         setBooks(loadBooks());
     };
 
-    const handleBatchAIReading = async () => {
+    const handleOpenDelegateModal = () => {
         if (!detailBook) return;
-        const chapters = await loadChapters(detailBook.id);
-        if (!chapters || chapters.length === 0) {
-            alert("正在解析书本章节，请稍后...");
-            return;
+        const chars = loadCharacters();
+        setAvailableCharacters(chars);
+        if (chars.length > 0) {
+            setDelegateCharId(chars[0].id);
         }
-        const samplePara = chapters[0]?.paragraphs[1] || chapters[0]?.paragraphs[0] || "阅读与思考，给心灵开辟一方自适的空间。";
-        const newAnno: ReadingAnnotation = {
-            id: "anno_batch_" + Date.now(),
-            bookId: detailBook.id,
-            chapterIndex: 0,
-            paragraphIndex: 1,
-            chapterTitle: chapters[0]?.title || "第一章",
-            quote: samplePara,
-            characterId: "char_a",
-            characterName: "阿澈",
-            content: "在文字的世界里，静默的思考往往最具有回响的力量。",
-            comments: [
-                { id: "c1", author: "阿澈", isAi: true, characterId: "char_a", text: "在文字的世界里，静默的思考往往最具有回响的力量。", createdAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }
-            ],
-            createdAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-        };
-        await saveAnnotation(newAnno);
-        const updatedAnnos = await loadAllBookAnnotations(detailBook.id);
-        setDetailAnnos(updatedAnnos);
-        alert("已成功委托 Char 独立阅读并生成 1 条精彩段落批注！");
+        setDelegateError(null);
+        setShowDelegateModal(true);
+    };
+
+    const handleConfirmDelegateReading = async () => {
+        if (!detailBook || !delegateCharId) return;
+        setDelegating(true);
+        setDelegateError(null);
+        try {
+            const chapters = await loadChapters(detailBook.id);
+            if (!chapters || chapters.length === 0) {
+                setDelegateError("尚未找到该书的章节数据，请先尝试打开阅读器。");
+                return;
+            }
+
+            let targetChapter = chapters.find((ch) => ch.paragraphs.length > 0) || chapters[0];
+            if (detailBook.format === "pdf" && targetChapter.paragraphs.length === 0) {
+                const { loadRawFileBlob } = await import("./reading-storage");
+                const blob = await loadRawFileBlob(detailBook.id);
+                if (blob) {
+                    const { parsePdfPageRange } = await import("./reading-parser");
+                    const parsed = await parsePdfPageRange(blob, { startPage: 1, endPage: PDF_PAGES_PER_CHAPTER, fileName: detailBook.title });
+                    if (parsed.chunks[0]?.paragraphs?.length) {
+                        targetChapter = { ...targetChapter, paragraphs: parsed.chunks[0].paragraphs };
+                    }
+                }
+            }
+
+            if (!targetChapter.paragraphs || targetChapter.paragraphs.length === 0) {
+                setDelegateError("未能提取到该章节的阅读文本。");
+                return;
+            }
+
+            const existingAnnos = await loadAllBookAnnotations(detailBook.id);
+            const newAnnos = await generateAnnotations(detailBook, targetChapter, existingAnnos, delegateCharId);
+
+            if (newAnnos.length > 0) {
+                await saveAnnotations(newAnnos);
+                const updatedAnnos = await loadAllBookAnnotations(detailBook.id);
+                setDetailAnnos(updatedAnnos);
+                const charName = availableCharacters.find((c) => c.id === delegateCharId)?.name || "Char";
+                alert(`委托成功！${charName} 已阅读正文并留下了 ${newAnnos.length} 条心得批注。`);
+                setShowDelegateModal(false);
+            } else {
+                setDelegateError("AI 未能返回新的批注内容，请检查 API 或模型设置后重试。");
+            }
+        } catch (err) {
+            console.error("[Reading] Delegate reading failed:", err);
+            setDelegateError(`委托阅读失败: ${err instanceof Error ? err.message : String(err)}`);
+        } finally {
+            setDelegating(false);
+        }
     };
 
     const formatBadge = (f: string) => f.toUpperCase();
@@ -669,7 +710,7 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
 
                     <button
                         type="button"
-                        onClick={handleBatchAIReading}
+                        onClick={handleOpenDelegateModal}
                         className="w-full py-2.5 mb-4 rounded-xl text-xs font-semibold text-white shadow-sm"
                         style={{ backgroundColor: activeThemeObj.accentColor }}
                     >
@@ -926,6 +967,65 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
 
             {showInteractionDialog && (
                 <ReadingInteractionDialog onClose={() => setShowInteractionDialog(false)} />
+            )}
+
+            {showDelegateModal && (
+                <ContentDialog
+                    title="委托阅读"
+                    confirmLabel={delegating ? "研读中..." : "开始委托阅读"}
+                    cancelLabel="取消"
+                    onConfirm={() => { void handleConfirmDelegateReading(); }}
+                    onCancel={() => {
+                        if (delegating) return;
+                        setShowDelegateModal(false);
+                    }}
+                >
+                    <div className="space-y-3 py-1">
+                        <p className="text-xs text-[#8c827a]">
+                            选择一位 AI 角色，委托其独立研读《{detailBook?.title}》并为你撰写感悟批注：
+                        </p>
+                        {availableCharacters.length === 0 ? (
+                            <div className="text-center py-6 text-xs text-[#8c827a]">
+                                暂无可选的 AI 角色，请先在通讯录中添加角色。
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 gap-2.5 max-h-[40vh] overflow-y-auto p-0.5">
+                                {availableCharacters.map((char) => {
+                                    const isSelected = delegateCharId === char.id;
+                                    return (
+                                        <button
+                                            key={char.id}
+                                            type="button"
+                                            onClick={() => setDelegateCharId(char.id)}
+                                            className={`flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-all ${
+                                                isSelected
+                                                    ? "border-[#9e2a2b] bg-[#fbf7f2] shadow-sm"
+                                                    : "border-[#e3d5c5]/60 bg-white hover:bg-[#faf7f2]"
+                                            }`}
+                                        >
+                                            <div className="w-9 h-9 rounded-full overflow-hidden bg-[#efe9e0] flex-shrink-0 flex items-center justify-center font-bold text-xs text-[#666]">
+                                                {char.avatar ? (
+                                                    <img src={char.avatar} alt={char.name} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    char.name[0]
+                                                )}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="text-xs font-semibold text-[#2b2622] truncate">{char.name}</div>
+                                                <div className="text-[10px] text-[#8c827a] truncate">{char.identity || "AI 共读伙伴"}</div>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                        {delegateError && (
+                            <div className="text-xs text-[#d9534f] bg-[#fdf2f2] p-2 rounded-lg">
+                                {delegateError}
+                            </div>
+                        )}
+                    </div>
+                </ContentDialog>
             )}
         </div>
     );
