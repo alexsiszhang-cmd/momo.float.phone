@@ -2254,7 +2254,7 @@ export function ReadingViewer({ book, onBack }: Props) {
                         <div className="reading-debug-hint">章节数据存在，但当前索引取不到正文。这个状态不是“正在加载”，而是本地章节数据和进度状态不一致。</div>
                     </div>
                 ) : isScrollMode ? (
-                    <div ref={scrollContentRef} className="reading-scroll-content" style={{ color: activeThemeObj.textColor }}>
+                    <div ref={scrollContentRef} className="reading-scroll-content" style={{ backgroundColor: activeThemeObj.bg, color: activeThemeObj.textColor }}>
                         {windowChapters.map((chapter) => (
                             <div key={chapter.id} data-chapter-index={chapter.index}>
                                 {chapter.paragraphs.map((paragraph, pIndex) => {
@@ -2284,10 +2284,11 @@ export function ReadingViewer({ book, onBack }: Props) {
                     <>
                         <div
                             className="reading-page-stage"
+                            style={{ backgroundColor: activeThemeObj.bg, color: activeThemeObj.textColor }}
                             onTouchStart={handleTouchStart}
                             onTouchEnd={handleTouchEnd}
                         >
-                            <div className="reading-page-surface" style={{ color: activeThemeObj.textColor }}>
+                            <div className="reading-page-surface" style={{ backgroundColor: activeThemeObj.bg, color: activeThemeObj.textColor }}>
                                 {txtPagesReadyForCurrentChapter ? renderTxtPage(txtPage) : null}
                             </div>
                         </div>
@@ -2311,12 +2312,12 @@ export function ReadingViewer({ book, onBack }: Props) {
             </div>
 
             {/* Immersive Page Number */}
-            <span className={`reading-immersive-page ${immersive ? 'opacity-35' : 'opacity-0'}`}>
+            <span className={`reading-immersive-page ${immersive ? 'opacity-35' : 'opacity-0'}`} style={{ color: activeThemeObj.subtextColor }}>
                 {isPdf ? `${pdfCurrentPage}/${pdfTotalPages || "?"}` : isScrollMode ? `${Math.round(Math.max(0, Math.min(1, scrollFraction)) * 100)}%` : `${txtDisplayedPage}/${txtTotalPages}`}
             </span>
 
             {/* Bottom bar — mirrors header style */}
-            <footer className="reading-footer">
+            <footer className="reading-footer" style={{ backgroundColor: activeThemeObj.bg, color: activeThemeObj.textColor, borderColor: activeThemeObj.borderColor }}>
                 <div className="reading-footer-inner">
                     <div className="reading-footer-slider-row">
                         <button
@@ -2838,7 +2839,7 @@ export function ReadingViewer({ book, onBack }: Props) {
             {showNavigationDialog && (
                 <>
                     <div className="reading-nav-backdrop" onClick={() => setShowNavigationDialog(false)} />
-                    <aside className="reading-nav-drawer">
+                    <aside className="reading-nav-drawer" style={{ backgroundColor: activeThemeObj.bg, color: activeThemeObj.textColor }}>
                         <header className="reading-nav-header">
                             <span className="reading-nav-title">导航</span>
                             <button type="button" className="reading-nav-close" onClick={() => setShowNavigationDialog(false)} aria-label="关闭">
