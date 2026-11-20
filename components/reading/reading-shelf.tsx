@@ -3,13 +3,13 @@
 import { useState, useRef, useEffect } from "react";
 import { ChevronLeft, Palette, Settings, Search, LayoutGrid, Layers, BarChart2, Plus } from "lucide-react";
 import { READING_THEMES, type ReadingThemeId } from "@/lib/reading-appearance";
-import { loadBooks, addBook, deleteBook, saveChapters, loadProgress, saveRawFile, updateBook, loadAllBookAnnotations, loadAllAnnotations, saveAnnotation } from "@/lib/reading-storage";
+import { loadBooks, addBook, deleteBook, saveChapters, loadChapters, loadProgress, saveRawFile, updateBook, loadAllBookAnnotations, loadAllAnnotations, saveAnnotation } from "@/lib/reading-storage";
 import type { ReadingAnnotation } from "@/lib/reading-types";
 import { decodeTxtArrayBuffer, parseTxtContent, parseEpubFile, PDF_PAGES_PER_CHAPTER } from "@/lib/reading-parser";
 import { loadReadingInteractionConfig, saveAnnotations } from "@/lib/reading-storage";
 import { loadCharacters } from "@/lib/character-storage";
 import type { Character } from "@/lib/character-types";
-import { generateAnnotations } from "@/lib/reading-engine";
+import { generateAnnotations, generateAnnotationBatch, type AnnotationTarget } from "@/lib/reading-engine";
 import { ContentDialog } from "@/components/ui/modal";
 import type { Book, BookChapter } from "@/lib/reading-types";
 import type { ReadingAppearance } from "@/lib/reading-appearance";
@@ -129,6 +129,8 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
     const [showSearchBar, setShowSearchBar] = useState(false);
     const [showDelegateModal, setShowDelegateModal] = useState(false);
     const [delegateCharId, setDelegateCharId] = useState<string>("");
+    const [delegateBatchSize, setDelegateBatchSize] = useState<number>(20);
+    const [delegateMaxCalls, setDelegateMaxCalls] = useState<number>(1);
     const [delegating, setDelegating] = useState(false);
     const [delegateError, setDelegateError] = useState<string | null>(null);
     const [availableCharacters, setAvailableCharacters] = useState<Character[]>([]);
@@ -479,14 +481,40 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
             }
 
             const existingAnnos = await loadAllBookAnnotations(detailBook.id);
-            const newAnnos = await generateAnnotations(detailBook, targetChapter, existingAnnos, delegateCharId);
+            const allTargets: AnnotationTarget[] = targetChapter.paragraphs.map((text, paragraphIndex) => ({
+                chapterIndex: targetChapter.index,
+                paragraphIndex,
+                text,
+            }));
 
-            if (newAnnos.length > 0) {
-                await saveAnnotations(newAnnos);
+            const batchSize = delegateBatchSize === 0 ? allTargets.length : delegateBatchSize;
+            const maxCalls = delegateMaxCalls;
+
+            const allNewAnnos: ReadingAnnotation[] = [];
+            let currentCall = 0;
+
+            for (let i = 0; i < allTargets.length && currentCall < maxCalls; i += batchSize) {
+                const chunkTargets = allTargets.slice(i, i + batchSize);
+                currentCall++;
+                const chunkAnnos = await generateAnnotationBatch(
+                    detailBook,
+                    targetChapter.title,
+                    chunkTargets,
+                    [...existingAnnos, ...allNewAnnos],
+                    delegateCharId
+                );
+                if (chunkAnnos.length > 0) {
+                    allNewAnnos.push(...chunkAnnos);
+                }
+            }
+
+            if (allNewAnnos.length > 0) {
+                await saveAnnotations(allNewAnnos);
                 const updatedAnnos = await loadAllBookAnnotations(detailBook.id);
                 setDetailAnnos(updatedAnnos);
                 const charName = availableCharacters.find((c) => c.id === delegateCharId)?.name || "Char";
-                alert(`委托成功！${charName} 已阅读正文并留下了 ${newAnnos.length} 条心得批注。`);
+                const analyzedCount = Math.min(currentCall * batchSize, allTargets.length);
+                alert(`委托成功！${charName} 已研读正文（调用 ${currentCall} 次 API，分析了 ${analyzedCount} 段），留下了 ${allNewAnnos.length} 条心得批注。`);
                 setShowDelegateModal(false);
             } else {
                 setDelegateError("AI 未能返回新的批注内容，请检查 API 或模型设置后重试。");
@@ -818,7 +846,7 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
                                     暂无可选的 AI 角色，请先在通讯录中添加角色。
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-2 gap-2.5 max-h-[40vh] overflow-y-auto p-0.5">
+                                <div className="grid grid-cols-2 gap-2.5 max-h-[30vh] overflow-y-auto p-0.5">
                                     {availableCharacters.map((char) => {
                                         const isSelected = delegateCharId === char.id;
                                         return (
@@ -848,8 +876,41 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
                                     })}
                                 </div>
                             )}
+
+                            <div className="border-t border-[#e3d5c5]/40 pt-3 space-y-2">
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className="text-[#8c827a]">单次分析段落数：</span>
+                                    <select
+                                        value={delegateBatchSize}
+                                        onChange={(e) => setDelegateBatchSize(Number(e.target.value))}
+                                        className="bg-[#f7f4ef] border border-[#e3d5c5] rounded-lg px-2 py-1 text-xs text-[#2b2622] outline-none cursor-pointer"
+                                    >
+                                        <option value={5}>5 段</option>
+                                        <option value={10}>10 段</option>
+                                        <option value={20}>20 段</option>
+                                        <option value={50}>50 段</option>
+                                        <option value={0}>全章 (无限制)</option>
+                                    </select>
+                                </div>
+
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className="text-[#8c827a]">API 最多调用次数：</span>
+                                    <select
+                                        value={delegateMaxCalls}
+                                        onChange={(e) => setDelegateMaxCalls(Number(e.target.value))}
+                                        className="bg-[#f7f4ef] border border-[#e3d5c5] rounded-lg px-2 py-1 text-xs text-[#2b2622] outline-none cursor-pointer"
+                                    >
+                                        <option value={1}>1 次</option>
+                                        <option value={2}>2 次</option>
+                                        <option value={3}>3 次</option>
+                                        <option value={5}>5 次</option>
+                                        <option value={10}>10 次</option>
+                                    </select>
+                                </div>
+                            </div>
+
                             {delegateError && (
-                                <div className="text-xs text-[#d9534f] bg-[#fdf2f2] p-2 rounded-lg">
+                                <div className="text-xs text-[#d9534f] bg-[#fdf2f2] p-2 rounded-lg break-all">
                                     {delegateError}
                                 </div>
                             )}
@@ -1048,7 +1109,7 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
                                 暂无可选的 AI 角色，请先在通讯录中添加角色。
                             </div>
                         ) : (
-                            <div className="grid grid-cols-2 gap-2.5 max-h-[40vh] overflow-y-auto p-0.5">
+                            <div className="grid grid-cols-2 gap-2.5 max-h-[30vh] overflow-y-auto p-0.5">
                                 {availableCharacters.map((char) => {
                                     const isSelected = delegateCharId === char.id;
                                     return (
@@ -1078,8 +1139,41 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
                                 })}
                             </div>
                         )}
+
+                        <div className="border-t border-[#e3d5c5]/40 pt-3 space-y-2">
+                            <div className="flex items-center justify-between text-xs">
+                                <span className="text-[#8c827a]">单次分析段落数：</span>
+                                <select
+                                    value={delegateBatchSize}
+                                    onChange={(e) => setDelegateBatchSize(Number(e.target.value))}
+                                    className="bg-[#f7f4ef] border border-[#e3d5c5] rounded-lg px-2 py-1 text-xs text-[#2b2622] outline-none cursor-pointer"
+                                >
+                                    <option value={5}>5 段</option>
+                                    <option value={10}>10 段</option>
+                                    <option value={20}>20 段</option>
+                                    <option value={50}>50 段</option>
+                                    <option value={0}>全章 (无限制)</option>
+                                </select>
+                            </div>
+
+                            <div className="flex items-center justify-between text-xs">
+                                <span className="text-[#8c827a]">API 最多调用次数：</span>
+                                <select
+                                    value={delegateMaxCalls}
+                                    onChange={(e) => setDelegateMaxCalls(Number(e.target.value))}
+                                    className="bg-[#f7f4ef] border border-[#e3d5c5] rounded-lg px-2 py-1 text-xs text-[#2b2622] outline-none cursor-pointer"
+                                >
+                                    <option value={1}>1 次</option>
+                                    <option value={2}>2 次</option>
+                                    <option value={3}>3 次</option>
+                                    <option value={5}>5 次</option>
+                                    <option value={10}>10 次</option>
+                                </select>
+                            </div>
+                        </div>
+
                         {delegateError && (
-                            <div className="text-xs text-[#d9534f] bg-[#fdf2f2] p-2 rounded-lg">
+                            <div className="text-xs text-[#d9534f] bg-[#fdf2f2] p-2 rounded-lg break-all">
                                 {delegateError}
                             </div>
                         )}
