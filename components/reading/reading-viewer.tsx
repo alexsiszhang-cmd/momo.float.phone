@@ -535,9 +535,24 @@ export function ReadingViewer({ book, onBack }: Props) {
     }, [chapterIndex, isPdf]);
 
     useEffect(() => {
-        const onSelChange = () => captureTextSelection();
+        let timer: ReturnType<typeof setTimeout>;
+        const onSelChange = () => {
+            clearTimeout(timer);
+            timer = setTimeout(captureTextSelection, 60);
+        };
+        const onTouchEnd = () => {
+            clearTimeout(timer);
+            timer = setTimeout(captureTextSelection, 80);
+        };
         document.addEventListener("selectionchange", onSelChange);
-        return () => document.removeEventListener("selectionchange", onSelChange);
+        document.addEventListener("touchend", onTouchEnd);
+        document.addEventListener("pointerup", onTouchEnd);
+        return () => {
+            clearTimeout(timer);
+            document.removeEventListener("selectionchange", onSelChange);
+            document.removeEventListener("touchend", onTouchEnd);
+            document.removeEventListener("pointerup", onTouchEnd);
+        };
     }, [captureTextSelection]);
 
     const saveHighlightAnnotation = useCallback(async (content = "") => {
@@ -1150,6 +1165,10 @@ export function ReadingViewer({ book, onBack }: Props) {
     const handleReadingSurfaceClick = (e: React.MouseEvent<HTMLDivElement>) => {
         const target = e.target as HTMLElement | null;
         if (!target) return;
+        // 如果手机端正在选字，不触发页面沉浸与点击翻页
+        const selText = window.getSelection()?.toString().trim();
+        if (selText) return;
+
         if (target.closest("button, input, select, textarea, a, [data-no-nav='true']")) return;
         if (activeMessageId || activeAnnotationId) {
             setActiveMessageId(null);
@@ -1934,6 +1953,9 @@ export function ReadingViewer({ book, onBack }: Props) {
     };
 
     const handleTouchEnd = (e: React.TouchEvent) => {
+        const selText = window.getSelection()?.toString().trim();
+        if (selText) return;
+
         const dx = e.changedTouches[0].clientX - touchStartRef.current.x;
         const dy = e.changedTouches[0].clientY - touchStartRef.current.y;
         if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
