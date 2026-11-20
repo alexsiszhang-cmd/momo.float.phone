@@ -342,6 +342,7 @@ export function ReadingViewer({ book, onBack }: Props) {
         context: string;
     } | null>(null);
     const [selectionToolsPos, setSelectionToolsPos] = useState<{ left: number; top: number; visible: boolean }>({ left: 0, top: 0, visible: false });
+    const [isHighlightMode, setIsHighlightMode] = useState(false);
     const [hlColor, setHlColor] = useState<string>("#e9609b");
     const [hlStyle, setHlStyle] = useState<"highlight" | "underline" | "wavy" | "strike">("underline");
     const [showRangeControls, setShowRangeControls] = useState(false);
@@ -590,34 +591,8 @@ export function ReadingViewer({ book, onBack }: Props) {
     }, [pendingSelection, companionId, saveHighlightAnnotation]);
 
     const handleManualOpenSelectionTools = useCallback(() => {
-        const sel = window.getSelection();
-        const text = sel?.toString().trim();
-
-        if (sel && !sel.isCollapsed && text) {
-            captureTextSelection();
-            return;
-        }
-
-        if (!currentChapter || currentChapter.paragraphs.length === 0) return;
-        const pIdx = 0;
-        const pText = currentChapter.paragraphs[pIdx] || "";
-        const quote = pText.slice(0, Math.min(24, pText.length)) || "本书段落";
-
-        setPendingSelection({
-            chapterIndex,
-            paragraphIndex: pIdx,
-            startOff: 0,
-            endOff: quote.length,
-            quote,
-            context: pText,
-        });
-
-        setSelectionToolsPos({
-            left: Math.max(80, Math.min(window.innerWidth - 80, window.innerWidth / 2)),
-            top: window.innerHeight / 2 - 40,
-            visible: true,
-        });
-    }, [captureTextSelection, chapterIndex, currentChapter]);
+        setIsHighlightMode((prev) => !prev);
+    }, []);
 
     const renderTxtPage = (pageIndex: number) => {
         const pageItems = txtPages[pageIndex] || [];
@@ -1195,6 +1170,8 @@ export function ReadingViewer({ book, onBack }: Props) {
     const handleReadingSurfaceClick = (e: React.MouseEvent<HTMLDivElement>) => {
         const target = e.target as HTMLElement | null;
         if (!target) return;
+        // 开启划线模式时，拦截所有页面点击沉浸与翻页
+        if (isHighlightMode) return;
         // 如果手机端正在选字，不触发页面沉浸与点击翻页
         const selText = window.getSelection()?.toString().trim();
         if (selText) return;
@@ -1983,6 +1960,7 @@ export function ReadingViewer({ book, onBack }: Props) {
     };
 
     const handleTouchEnd = (e: React.TouchEvent) => {
+        if (isHighlightMode) return;
         const selText = window.getSelection()?.toString().trim();
         if (selText) return;
 
@@ -2062,6 +2040,35 @@ export function ReadingViewer({ book, onBack }: Props) {
                     <div className="reading-header-status" style={{ color: "var(--c-danger)" }}>{annotationError}</div>
                 )}
             </header>
+
+            {/* 划线模式提示与调色盘 */}
+            {isHighlightMode && (
+                <div className="reading-highlight-mode-bar" data-no-nav="true" onClick={(e) => e.stopPropagation()}>
+                    <div className="reading-highlight-mode-info">
+                        <Highlighter size={16} />
+                        <span>划线模式中 · 翻页已暂停</span>
+                    </div>
+                    <div className="reading-highlight-mode-colors">
+                        {["#e9609b", "#ac96e4", "#4a71b5", "#72bb86", "#e5b66e"].map((c) => (
+                            <button
+                                key={c}
+                                type="button"
+                                className={`reading-color-dot ${hlColor === c ? "is-active" : ""}`}
+                                style={{ backgroundColor: c }}
+                                onClick={() => setHlColor(c)}
+                            />
+                        ))}
+                    </div>
+                    <button
+                        type="button"
+                        className="reading-highlight-mode-close"
+                        onClick={() => setIsHighlightMode(false)}
+                    >
+                        <X size={15} />
+                        <span>完成</span>
+                    </button>
+                </div>
+            )}
 
             {generating && (
                 <div className="reading-status-float" aria-live="polite">
