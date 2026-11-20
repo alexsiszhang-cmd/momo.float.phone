@@ -123,7 +123,7 @@ export default function ReadingApp({ onClose }: Props) {
     if (!ready) return <div className="absolute inset-0 z-[100] flex items-center justify-center" style={{ background: "#fffced" }}><span className="ts-14" style={{ color: "#a39487" }}>加载中...</span></div>;
 
     return (
-        <div className="absolute inset-0" style={appearanceStyle}>
+        <div className="absolute inset-0 w-full h-full bg-transparent overflow-hidden" style={appearanceStyle}>
             {!activeBook && (
                 <ReadingShelf
                     onOpenBook={setActiveBook}

@@ -787,7 +787,7 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
                 </div>
             </header>
 
-            <div className="reading-shelf-body flex-1 overflow-y-auto p-4">
+            <div className="reading-shelf-body flex-1 overflow-y-auto p-4" style={{ backgroundColor: activeThemeObj.bg, color: activeThemeObj.textColor }}>
                 {showSearchBar && (
                     <div className="mb-4">
                         <div className="reading-search-bar flex items-center px-3 py-1.5 rounded-full" style={{ backgroundColor: activeThemeObj.cardBg, borderColor: activeThemeObj.borderColor }}>
@@ -824,7 +824,7 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
                                         borderColor: activeThemeObj.borderColor
                                     }}
                                 >
-                                    {f === "all" ? "在读" : f === "reading" ? "在读" : f === "unread" ? "未读" : "已读"}
+                                    {f === "all" ? "全部" : f === "reading" ? "在读" : f === "unread" ? "未读" : "已读"}
                                 </button>
                             ))}
                         </div>
