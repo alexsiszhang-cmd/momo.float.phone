@@ -755,26 +755,23 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
             className="reading-app-surface absolute inset-0 z-[100] flex flex-col transition-colors duration-300"
             style={{ backgroundColor: activeThemeObj.bg, color: activeThemeObj.textColor }}
         >
-            <header className="reading-shelf-header border-b" style={{ borderColor: activeThemeObj.borderColor }}>
+            <header className="reading-shelf-header border-b" style={{ backgroundColor: activeThemeObj.bg, borderColor: activeThemeObj.borderColor }}>
                 <div className="reading-shelf-appbar">
                     <button className="reading-shelf-back" type="button" onClick={onClose} aria-label="返回" style={{ color: activeThemeObj.textColor }}>
                         <ChevronLeft size={22} strokeWidth={2.5} />
                     </button>
-                    {/* 右上角线条图标组 (拒绝 Emoji) */}
+                    {/* 右上角线条图标组 (已移除 3D 轮播模式及切换按钮，拒绝 Emoji) */}
                     <div className="reading-shelf-actions flex items-center gap-1">
-                        <button className="reading-shelf-action-btn" type="button" onClick={() => setShowSearchBar(!showSearchBar)} aria-label="搜索" style={{ color: activeThemeObj.textColor }}>
+                        <button className="reading-shelf-action-btn" type="button" onClick={() => setShowSearchBar(!showSearchBar)} aria-label="搜索" style={{ color: activeThemeObj.textColor, backgroundColor: "transparent" }}>
                             <Search size={18} strokeWidth={1.8} />
                         </button>
-                        <button className="reading-shelf-action-btn" type="button" onClick={() => setViewMode(viewMode === "carousel" ? "grid" : "carousel")} aria-label="切换视图" style={{ color: activeThemeObj.textColor }}>
-                            {viewMode === "carousel" ? <LayoutGrid size={18} strokeWidth={1.8} /> : <Layers size={18} strokeWidth={1.8} />}
-                        </button>
-                        <button className="reading-shelf-action-btn" type="button" onClick={() => setShowStatsView(true)} aria-label="共读统计" style={{ color: activeThemeObj.textColor }}>
+                        <button className="reading-shelf-action-btn" type="button" onClick={() => setShowStatsView(true)} aria-label="共读统计" style={{ color: activeThemeObj.textColor, backgroundColor: "transparent" }}>
                             <BarChart2 size={18} strokeWidth={1.8} />
                         </button>
-                        <button className="reading-shelf-action-btn" type="button" onClick={() => setShowThemeDrawer(true)} aria-label="色彩美化" style={{ color: activeThemeObj.textColor }}>
+                        <button className="reading-shelf-action-btn" type="button" onClick={() => setShowThemeDrawer(true)} aria-label="色彩美化" style={{ color: activeThemeObj.textColor, backgroundColor: "transparent" }}>
                             <Palette size={18} strokeWidth={1.8} />
                         </button>
-                        <button className="reading-shelf-action-btn" type="button" onClick={() => setShowInteractionDialog(true)} aria-label="阅读设置" style={{ color: activeThemeObj.textColor }}>
+                        <button className="reading-shelf-action-btn" type="button" onClick={() => setShowInteractionDialog(true)} aria-label="阅读设置" style={{ color: activeThemeObj.textColor, backgroundColor: "transparent" }}>
                             <Settings size={18} strokeWidth={1.8} />
                         </button>
                         <label className="reading-shelf-action-btn reading-shelf-action-primary cursor-pointer">
@@ -783,11 +780,10 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
                         </label>
                     </div>
                 </div>
-                <div className="reading-shelf-title-stack flex items-center justify-between pr-4">
-                    <div>
-                        <h1 className="reading-shelf-title" style={{ color: activeThemeObj.textColor }}>书房</h1>
-                        <span className="reading-shelf-subtitle" style={{ color: activeThemeObj.subtextColor }}>{books.length} BOOKS IN YOUR LIBRARY</span>
-                    </div>
+                {/* 标题居左 */}
+                <div className="reading-shelf-title-stack text-left flex flex-col items-start justify-start px-4 pb-2">
+                    <h1 className="reading-shelf-title text-left font-bold text-2xl" style={{ color: activeThemeObj.textColor, textAlign: "left" }}>书房</h1>
+                    <span className="reading-shelf-subtitle text-left text-xs" style={{ color: activeThemeObj.subtextColor, textAlign: "left" }}>{books.length} BOOKS IN YOUR LIBRARY</span>
                 </div>
             </header>
 
@@ -811,83 +807,9 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
                     <div className="py-12 text-center text-xs" style={{ color: activeThemeObj.subtextColor }}>
                         {books.length === 0 ? "还没导入书籍，点击右上角 + 开始阅读" : "没有匹配的书籍"}
                     </div>
-                ) : viewMode === "carousel" && activeCarouselBook ? (
-                    /* 模式 A：3D Carousel 轮播模式 (复刻图 1) */
-                    <div className="flex flex-col items-center justify-between min-h-[70vh] py-4">
-                        {/* 顶部三栏分类切换 */}
-                        <div className="flex items-center gap-1 bg-[#f4ece1]/40 p-1 rounded-full text-xs mb-6">
-                            <span className="px-3 py-1 rounded-full font-medium bg-white text-[#2b2622] shadow-sm">在读</span>
-                            <span className="px-3 py-1 rounded-full text-[#8c827a]">未读</span>
-                            <span className="px-3 py-1 rounded-full text-[#8c827a]">已读</span>
-                        </div>
-
-                        {/* 3D 轮播舞台 */}
-                        <div className="relative w-full flex items-center justify-center my-4 h-64">
-                            <button
-                                type="button"
-                                onClick={() => setCarouselIndex(prev => prev - 1)}
-                                className="absolute left-2 z-20 p-2 text-xs opacity-60 hover:opacity-100"
-                                style={{ color: activeThemeObj.textColor }}
-                            >
-                                &lt;
-                            </button>
-
-                            <div
-                                className="relative flex items-center justify-center cursor-pointer transition-all duration-300"
-                                onClick={() => setDetailBook(activeCarouselBook)}
-                            >
-                                <div
-                                    className="w-40 h-56 rounded-xl shadow-2xl overflow-hidden transform transition-all duration-300 border"
-                                    style={{ borderColor: activeThemeObj.borderColor, backgroundColor: activeThemeObj.cardBg }}
-                                >
-                                    {activeCarouselBook.coverUrl ? (
-                                        <img src={activeCarouselBook.coverUrl} className="w-full h-full object-cover" />
-                                    ) : (
-                                        <div className="p-4 flex flex-col justify-between h-full text-center">
-                                            <span className="font-bold text-base mt-2" style={{ color: activeThemeObj.textColor }}>{activeCarouselBook.title}</span>
-                                            <span className="text-xs" style={{ color: activeThemeObj.subtextColor }}>{activeCarouselBook.author || "未知作者"}</span>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            <button
-                                type="button"
-                                onClick={() => setCarouselIndex(prev => prev + 1)}
-                                className="absolute right-2 z-20 p-2 text-xs opacity-60 hover:opacity-100"
-                                style={{ color: activeThemeObj.textColor }}
-                            >
-                                &gt;
-                            </button>
-                        </div>
-
-                        {/* 图书标头与底部《阅读进度 & 我们的共读卡片》 */}
-                        <div className="w-full text-center mt-2">
-                            <h2 className="text-xl font-bold" style={{ color: activeThemeObj.textColor }}>{activeCarouselBook.title}</h2>
-                            <p className="text-xs mt-1" style={{ color: activeThemeObj.subtextColor }}>{activeCarouselBook.author || "未知作者"}</p>
-
-                            {/* 浮动共读进度卡片 */}
-                            <div className="mt-6 p-4 rounded-2xl border shadow-sm text-left flex items-center justify-between" style={{ backgroundColor: activeThemeObj.cardBg, borderColor: activeThemeObj.borderColor }}>
-                                <div>
-                                    <div className="text-xs font-semibold" style={{ color: activeThemeObj.textColor }}>阅读进度</div>
-                                    <div className="text-xs mt-1" style={{ color: activeThemeObj.subtextColor }}>
-                                        {progressMap[activeCarouselBook.id]?.hasProgress ? `已读 ${Math.round((progressMap[activeCarouselBook.id].fraction || 0) * 100)}%` : "尚未开始"}
-                                    </div>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => onOpenBook(activeCarouselBook)}
-                                    className="px-5 py-2 rounded-full text-xs font-semibold text-white shadow-sm"
-                                    style={{ backgroundColor: activeThemeObj.accentColor }}
-                                >
-                                    继续阅读
-                                </button>
-                            </div>
-                        </div>
-                    </div>
                 ) : (
-                    /* 模式 B：3 列分组网格模式 (复刻图 2) */
-                    <div>
+                    /* 精致网格模式 (复刻图 2) - 全量响应主题背景 */
+                    <div style={{ backgroundColor: activeThemeObj.bg }}>
                         {/* 顶部分组分类 */}
                         <div className="flex items-center gap-2 mb-4 text-xs">
                             {(["all", "reading", "unread", "finished"] as const).map(f => (
@@ -902,7 +824,7 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
                                         borderColor: activeThemeObj.borderColor
                                     }}
                                 >
-                                    {f === "all" ? "全部" : f === "reading" ? "在读" : f === "unread" ? "未读" : "已读"}
+                                    {f === "all" ? "在读" : f === "reading" ? "在读" : f === "unread" ? "未读" : "已读"}
                                 </button>
                             ))}
                         </div>
