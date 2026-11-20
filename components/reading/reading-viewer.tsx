@@ -2150,7 +2150,7 @@ export function ReadingViewer({ book, onBack }: Props) {
                             <div
                                 key={c.characterId}
                                 className="chat-contact-item"
-                                onClick={() => { setCompanionId(c.characterId); closeCharPicker(); generatedBatchesRef.current.clear(); prefetchedBatchKeysRef.current.clear(); }}
+                                onClick={() => { setCompanionId(c.characterId); closeCharPicker(); generatedBatchesRef.current.clear(); }}
                             >
                                 <div className="chat-contact-avatar"
                                     style={companionId === c.characterId ? { outline: "3px solid var(--c-success)", outlineOffset: "2px" } : undefined}
