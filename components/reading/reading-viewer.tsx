@@ -466,7 +466,9 @@ export function ReadingViewer({ book, onBack }: Props) {
             const endOff = typeof a.endOff === "number" && a.endOff > startOff ? a.endOff : text.length;
             const createdBy = a.createdBy || (a.characterId === "user" ? "human" : "ai");
             const color = a.color || (createdBy === "human" ? "#e9609b" : "#e5b66e");
-            return { ...a, startOff, endOff, createdBy, color };
+            // 确保 quote 永远取正文真实的划线句子
+            const realQuote = text.slice(startOff, endOff) || a.quote || text;
+            return { ...a, startOff, endOff, createdBy, color, quote: realQuote };
         });
 
         if (hlAnnos.length === 0) {
@@ -2661,7 +2663,9 @@ export function ReadingViewer({ book, onBack }: Props) {
                             </button>
                         </div>
                         <div className="bg-[#fbf9f5] border-l-3 border-[#9e2a2b] p-3 rounded-r-lg text-xs leading-relaxed text-[#2b2622] mb-3">
-                            {selectedAnnoForSheet.quote || selectedAnnoForSheet.content}
+                            {selectedAnnoForSheet.quote && selectedAnnoForSheet.quote !== selectedAnnoForSheet.content
+                                ? selectedAnnoForSheet.quote
+                                : selectedAnnoForSheet.quote || "正文划线原句"}
                         </div>
 
                         <div className="flex-1 overflow-y-auto space-y-2 mb-3">
