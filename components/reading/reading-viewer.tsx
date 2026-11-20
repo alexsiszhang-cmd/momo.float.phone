@@ -341,6 +341,22 @@ export function ReadingViewer({ book, onBack }: Props) {
     const [scrollFraction, setScrollFraction] = useState(0);
     const [flipAnim, setFlipAnim] = useState<{ direction: 'forward' | 'backward'; items: TxtPageItem[] } | null>(null);
 
+    // ── 高亮划线选字系统 ──
+    const [pendingSelection, setPendingSelection] = useState<{
+        chapterIndex: number;
+        paragraphIndex: number;
+        startOff: number;
+        endOff: number;
+        quote: string;
+        context: string;
+    } | null>(null);
+    const [selectionToolsPos, setSelectionToolsPos] = useState<{ left: number; top: number; visible: boolean }>({ left: 0, top: 0, visible: false });
+    const [hlColor, setHlColor] = useState<string>("#e9609b");
+    const [hlStyle, setHlStyle] = useState<"highlight" | "underline" | "wavy" | "strike">("underline");
+    const [showRangeControls, setShowRangeControls] = useState(false);
+    const [annoWriteInput, setAnnoWriteInput] = useState("");
+    const [showWriteModal, setShowWriteModal] = useState(false);
+
     const [enrichedContacts, setEnrichedContacts] = useState<(ReturnType<typeof loadChatContacts>[number] & { char: Character })[]>([]);
 
     useEffect(() => {
@@ -402,6 +418,173 @@ export function ReadingViewer({ book, onBack }: Props) {
         (chaptersLoaded && chapters.length > 0 && Boolean(currentChapter) && !isScrollMode && !txtPagesReadyForCurrentChapter)
     );
 
+    // ── 切片高亮渲染助手 ──
+    const renderParaContentWithHighlights = useCallback((
+        text: string,
+        paragraphIndex: number,
+        currentChapterIndex: number,
+    ) => {
+        const hlAnnos = annotations.filter(
+            (a) => a.chapterIndex === currentChapterIndex && a.paragraphIndex === paragraphIndex && typeof a.startOff === "number" && typeof a.endOff === "number" && a.endOff > a.startOff
+        );
+
+        if (hlAnnos.length === 0) {
+            return text;
+        }
+
+        const rawBounds = new Set<number>([0, text.length]);
+        for (const a of hlAnnos) {
+            rawBounds.add(Math.max(0, Math.min(text.length, a.startOff!)));
+            rawBounds.add(Math.max(0, Math.min(text.length, a.endOff!)));
+        }
+        const points = Array.from(rawBounds).sort((a, b) => a - b);
+        const elements: React.ReactNode[] = [];
+
+        for (let k = 0; k < points.length - 1; k++) {
+            const s = points[k];
+            const e = points[k + 1];
+            if (e <= s) continue;
+            const segText = text.slice(s, e);
+            const covering = hlAnnos.filter((a) => a.startOff! <= s && a.endOff! >= e);
+
+            if (covering.length === 0) {
+                elements.push(<span key={`seg-${s}-${e}`}>{segText}</span>);
+            } else {
+                const first = covering[0];
+                const color = first.color || "#e9609b";
+                const style = first.style || "highlight";
+                const isHuman = first.createdBy !== "ai";
+                const hasNote = Boolean(first.content?.trim() || (first.comments && first.comments.length > 0));
+
+                let segStyle: React.CSSProperties = {};
+                if (style === "highlight") {
+                    segStyle = { backgroundColor: `${color}38`, borderRadius: "2px", padding: "1px 0" };
+                } else if (style === "underline") {
+                    segStyle = { borderBottom: `2px solid ${color}`, paddingBottom: "1px" };
+                } else if (style === "wavy") {
+                    segStyle = { textDecoration: "underline wavy", textDecorationColor: color, textUnderlineOffset: "4px" };
+                } else if (style === "strike") {
+                    segStyle = { textDecoration: "line-through", textDecorationColor: color };
+                }
+
+                elements.push(
+                    <span
+                        key={`seg-${s}-${e}`}
+                        className={`reading-seg ${isHuman ? "hl-human" : "hl-ai"}`}
+                        style={segStyle}
+                        data-no-nav="true"
+                        onClick={(evt) => {
+                            evt.stopPropagation();
+                            setSelectedAnnoForSheet(first);
+                        }}
+                    >
+                        {segText}
+                        {hasNote && <span className={`reading-bub ${isHuman ? "by-human" : "by-ai"}`} style={{ backgroundColor: color }} />}
+                    </span>
+                );
+            }
+        }
+
+        return <>{elements}</>;
+    }, [annotations]);
+
+    const captureTextSelection = useCallback(() => {
+        if (isPdf) return;
+        const sel = window.getSelection();
+        if (!sel || sel.isCollapsed || !sel.rangeCount) {
+            setSelectionToolsPos((prev) => ({ ...prev, visible: false }));
+            setPendingSelection(null);
+            return;
+        }
+
+        const range = sel.getRangeAt(0);
+        const text = sel.toString().trim();
+        if (!text) {
+            setSelectionToolsPos((prev) => ({ ...prev, visible: false }));
+            setPendingSelection(null);
+            return;
+        }
+
+        const startEl = range.startContainer.nodeType === 3 ? range.startContainer.parentElement : (range.startContainer as HTMLElement);
+        const endEl = range.endContainer.nodeType === 3 ? range.endContainer.parentElement : (range.endContainer as HTMLElement);
+
+        const startP = startEl?.closest?.("[data-paragraph-index]") as HTMLElement | null;
+        const endP = endEl?.closest?.("[data-paragraph-index]") as HTMLElement | null;
+
+        if (!startP || !endP || startP !== endP) {
+            setSelectionToolsPos((prev) => ({ ...prev, visible: false }));
+            setPendingSelection(null);
+            return;
+        }
+
+        const pIdx = Number(startP.getAttribute("data-paragraph-index"));
+        const cIdx = Number(startP.getAttribute("data-chapter-index") ?? chapterIndex);
+        if (!Number.isFinite(pIdx)) return;
+
+        const pText = startP.textContent || "";
+        const prefixRange = document.createRange();
+        prefixRange.selectNodeContents(startP);
+        prefixRange.setEnd(range.startContainer, range.startOffset);
+        const startOff = prefixRange.toString().length;
+        const endOff = Math.min(pText.length, startOff + text.length);
+
+        const rect = range.getBoundingClientRect();
+        setPendingSelection({
+            chapterIndex: cIdx,
+            paragraphIndex: pIdx,
+            startOff,
+            endOff,
+            quote: text,
+            context: pText,
+        });
+
+        setSelectionToolsPos({
+            left: Math.max(80, Math.min(window.innerWidth - 80, rect.left + rect.width / 2)),
+            top: Math.max(60, rect.top - 12),
+            visible: true,
+        });
+    }, [chapterIndex, isPdf]);
+
+    useEffect(() => {
+        const onSelChange = () => captureTextSelection();
+        document.addEventListener("selectionchange", onSelChange);
+        return () => document.removeEventListener("selectionchange", onSelChange);
+    }, [captureTextSelection]);
+
+    const saveHighlightAnnotation = useCallback(async (content = "") => {
+        if (!pendingSelection) return null;
+        const anno: ReadingAnnotation = {
+            id: `ra_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            bookId: book.id,
+            chapterIndex: pendingSelection.chapterIndex,
+            paragraphIndex: pendingSelection.paragraphIndex,
+            startOff: pendingSelection.startOff,
+            endOff: pendingSelection.endOff,
+            quote: pendingSelection.quote,
+            color: hlColor,
+            style: hlStyle,
+            createdBy: "human",
+            characterId: companionId || "user",
+            characterName: companion?.name || "读者",
+            content,
+            createdAt: new Date().toISOString(),
+        };
+
+        await saveAnnotation(anno);
+        setAnnotations((prev) => [...prev, anno]);
+        setSelectionToolsPos((prev) => ({ ...prev, visible: false }));
+        setPendingSelection(null);
+        window.getSelection()?.removeAllRanges();
+        return anno;
+    }, [pendingSelection, book.id, hlColor, hlStyle, companionId, companion?.name]);
+
+    const askCharAboutSelection = useCallback(async () => {
+        if (!pendingSelection || !companionId) return;
+        const anno = await saveHighlightAnnotation(`对这段“${pendingSelection.quote.slice(0, 15)}...”很有感触`);
+        if (!anno) return;
+        setSelectedAnnoForSheet(anno);
+    }, [pendingSelection, companionId, saveHighlightAnnotation]);
+
     const renderTxtPage = (pageIndex: number) => {
         const pageItems = txtPages[pageIndex] || [];
         if (pageItems.length === 0) return null;
@@ -412,7 +595,14 @@ export function ReadingViewer({ book, onBack }: Props) {
                         ? <div key={i} className="reading-line-gap" />
                         : item.kind === "annotation"
                             ? renderAnnotationItem(item.annotation)
-                            : <p key={i} className={`reading-line${item.indent ? " reading-line-indent" : ""}${item.segEnd ? " reading-line-seg-end" : ""}`}>{item.text}</p>
+                            : <p
+                                key={i}
+                                className={`reading-line${item.indent ? " reading-line-indent" : ""}${item.segEnd ? " reading-line-seg-end" : ""}`}
+                                data-paragraph-index={item.paragraphIndex}
+                                data-chapter-index={item.chapterIndex}
+                            >
+                                {renderParaContentWithHighlights(item.text, item.paragraphIndex, item.chapterIndex)}
+                            </p>
                 ))}
             </div>
         );
@@ -477,7 +667,14 @@ export function ReadingViewer({ book, onBack }: Props) {
                             <span className="reading-annotation-name">{item.annotation.characterName}</span>
                             <span className="reading-annotation-text">{item.annotation.content}</span>
                         </div>
-                        : <p key={i} className={`reading-line${item.indent ? " reading-line-indent" : ""}${item.segEnd ? " reading-line-seg-end" : ""}`}>{item.text}</p>
+                        : <p
+                            key={i}
+                            className={`reading-line${item.indent ? " reading-line-indent" : ""}${item.segEnd ? " reading-line-seg-end" : ""}`}
+                            data-paragraph-index={item.paragraphIndex}
+                            data-chapter-index={item.chapterIndex}
+                        >
+                            {renderParaContentWithHighlights(item.text, item.paragraphIndex, item.chapterIndex)}
+                        </p>
             )}
         </div>
     );
@@ -2270,8 +2467,10 @@ export function ReadingViewer({ book, onBack }: Props) {
                                                 <p
                                                     key={sIndex}
                                                     className={`reading-line reading-line-indent${sIndex === segmentCount - 1 ? " reading-line-seg-end" : ""}`}
+                                                    data-paragraph-index={pIndex}
+                                                    data-chapter-index={chapter.index}
                                                 >
-                                                    {segment}
+                                                    {renderParaContentWithHighlights(segment, pIndex, chapter.index)}
                                                 </p>
                                             ))}
                                             {paragraphAnnotations.map((annotation) => renderAnnotationItem(annotation))}
@@ -2871,6 +3070,74 @@ export function ReadingViewer({ book, onBack }: Props) {
                         </div>
                     </aside>
                 </>
+            )}
+
+            {/* 划线自适应轻操作条 */}
+            {selectionToolsPos.visible && pendingSelection && (
+                <div
+                    className="reading-selection-tools"
+                    style={{ left: selectionToolsPos.left, top: selectionToolsPos.top }}
+                    data-no-nav="true"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <button
+                        type="button"
+                        className="reading-selection-btn reading-selection-btn-primary"
+                        onClick={() => saveHighlightAnnotation("")}
+                    >
+                        划线高亮
+                    </button>
+                    <button
+                        type="button"
+                        className="reading-selection-btn"
+                        onClick={() => {
+                            setAnnoWriteInput("");
+                            setShowWriteModal(true);
+                        }}
+                    >
+                        写想法
+                    </button>
+                    {companionId && (
+                        <button
+                            type="button"
+                            className="reading-selection-btn"
+                            onClick={askCharAboutSelection}
+                        >
+                            指给{companion?.name || "角色"}看
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        className="reading-selection-btn"
+                        onClick={() => copyToClipboard(pendingSelection.quote)}
+                    >
+                        复制
+                    </button>
+                </div>
+            )}
+
+            {/* 写想法 Modal */}
+            {showWriteModal && pendingSelection && (
+                <ContentDialog
+                    title="写在句旁"
+                    confirmLabel="保存想法"
+                    cancelLabel="取消"
+                    onConfirm={async () => {
+                        await saveHighlightAnnotation(annoWriteInput);
+                        setShowWriteModal(false);
+                    }}
+                    onCancel={() => setShowWriteModal(false)}
+                >
+                    <div className="p-3 bg-[#f8f6f0] rounded-lg text-xs italic text-[#666] mb-3">
+                        “{pendingSelection.quote}”
+                    </div>
+                    <textarea
+                        value={annoWriteInput}
+                        onChange={(e) => setAnnoWriteInput(e.target.value)}
+                        placeholder="写下你对这句话的想法..."
+                        className="w-full h-24 p-2 text-xs border border-[#ddd] rounded-md outline-none resize-none"
+                    />
+                </ContentDialog>
             )}
         </div>
     );

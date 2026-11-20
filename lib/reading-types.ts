@@ -55,6 +55,11 @@ export type ReadingAnnotation = {
     bookId: string;
     chapterIndex: number;
     paragraphIndex: number;
+    startOff?: number;
+    endOff?: number;
+    color?: string;
+    style?: "highlight" | "underline" | "wavy" | "strike";
+    createdBy?: "human" | "ai";
     chapterTitle?: string;
     quote?: string;
     characterId: string;
