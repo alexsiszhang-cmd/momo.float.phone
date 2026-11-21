@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { ChevronLeft, Palette, Settings, Search, LayoutGrid, Layers, BarChart2, Plus } from "lucide-react";
 import { READING_THEMES, type ReadingThemeId } from "@/lib/reading-appearance";
-import { loadBooks, addBook, deleteBook, saveChapters, loadChapters, loadProgress, saveRawFile, updateBook, loadAllBookAnnotations, loadAllAnnotations, saveAnnotation } from "@/lib/reading-storage";
+import { loadBooks, addBook, deleteBook, saveChapters, loadChapters, loadProgress, saveRawFile, updateBook, loadAllBookAnnotations, loadAllAnnotations, saveAnnotation, getAccumulatedReadingSeconds } from "@/lib/reading-storage";
 import type { ReadingAnnotation } from "@/lib/reading-types";
 import { decodeTxtArrayBuffer, parseTxtContent, parseEpubFile, PDF_PAGES_PER_CHAPTER } from "@/lib/reading-parser";
 import { loadReadingInteractionConfig, saveAnnotations } from "@/lib/reading-storage";
@@ -537,87 +537,203 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
 
     if (showStatsView) {
         const totalBooks = books.length;
-        const finishedBooks = books.filter(b => b.status === "finished").length;
-        const readingBooks = books.filter(b => b.status === "reading" || !b.status).length;
-        const unreadBooks = books.filter(b => b.status === "unread").length;
+        // 计算每本书的真实百分比进度与状态
+        let finishedBooks = 0;
+        let readingBooks = 0;
+        let unreadBooks = 0;
+
+        books.forEach((b) => {
+            const p = progressMap[b.id];
+            const pct = p?.hasProgress ? Math.round((p.fraction ?? ((p.chapterIndex + 1) / (p.total || 1))) * 100) : 0;
+            if (b.status === "finished" || pct >= 100) {
+                finishedBooks += 1;
+            } else if (b.status === "unread" || pct === 0) {
+                unreadBooks += 1;
+            } else {
+                readingBooks += 1;
+            }
+        });
+
+        // 真实累计阅读时长
+        const totalSeconds = getAccumulatedReadingSeconds();
+        const totalMinutes = Math.floor(totalSeconds / 60);
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+        const readingTimeText = hours > 0 ? `${hours} 小时 ${minutes} 分` : `${minutes} 分钟`;
+
+        // 统计划线与批注（区分 human 与 ai）
+        const totalHighlights = allAnnos.filter(a => a.createdBy === "human" || a.characterId === "user").length || allAnnos.length;
         const totalAnnosCount = allAnnos.length;
         let totalReplies = 0;
         allAnnos.forEach(a => {
             if (a.comments) totalReplies += a.comments.length;
         });
 
+        // 统计 Char 共读排名（按角色批注与回复总数从高到低排序，过滤 0 批注的角色）
+        const charStatsMap = new Map<string, { id: string; name: string; avatar?: string; count: number }>();
+        const allSystemChars = loadCharacters();
+        allSystemChars.forEach(c => {
+            charStatsMap.set(c.id, { id: c.id, name: c.name, avatar: c.avatar, count: 0 });
+        });
+
+        allAnnos.forEach(a => {
+            if (a.characterId && a.characterId !== "user") {
+                const existing = charStatsMap.get(a.characterId) || { id: a.characterId, name: a.characterName || "Char", count: 0 };
+                existing.count += 1;
+                charStatsMap.set(a.characterId, existing);
+            }
+            if (a.comments) {
+                a.comments.forEach(c => {
+                    if (c.isAi && c.characterId) {
+                        const existing = charStatsMap.get(c.characterId) || { id: c.characterId, name: c.author || "Char", count: 0 };
+                        existing.count += 1;
+                        charStatsMap.set(c.characterId, existing);
+                    }
+                });
+            }
+        });
+
+        const charRankings = Array.from(charStatsMap.values())
+            .filter(item => item.count > 0)
+            .sort((a, b) => b.count - a.count);
+
+        const participatingCharsCount = charRankings.length;
+
         return (
-            <div className="reading-app-surface absolute inset-0 z-[100] flex flex-col bg-[#f7f4ef] text-[#2b2622]">
-                <header className="flex items-center justify-between px-4 pt-10 pb-3 border-b border-[#e3d5c5]">
-                    <button type="button" onClick={() => setShowStatsView(false)} className="p-2 text-[#2b2622]">
+            <div
+                className="reading-app-surface absolute inset-0 z-[100] flex flex-col transition-colors duration-300"
+                style={{ backgroundColor: activeThemeObj.bg, color: activeThemeObj.textColor }}
+            >
+                <header
+                    className="flex items-center justify-between px-4 pt-10 pb-3 border-b"
+                    style={{ backgroundColor: activeThemeObj.bg, borderColor: activeThemeObj.borderColor }}
+                >
+                    <button type="button" onClick={() => setShowStatsView(false)} className="p-2" style={{ color: activeThemeObj.textColor }}>
                         <ChevronLeft size={22} strokeWidth={2.5} />
                     </button>
-                    <h1 className="text-base font-semibold tracking-wider">共读记录</h1>
+                    <h1 className="text-base font-semibold tracking-wider" style={{ color: activeThemeObj.textColor }}>共读记录</h1>
                     <div className="w-8" />
                 </header>
 
-                <div className="flex-1 overflow-y-auto p-4">
+                <div className="flex-1 overflow-y-auto p-4" style={{ backgroundColor: activeThemeObj.bg }}>
                     <div className="text-center my-6">
-                        <div className="text-xs text-[#8c827a]">书房里有</div>
-                        <div className="text-3xl font-extrabold my-1">{totalBooks} 本书</div>
-                        <div className="text-xs text-[#8c827a]">共同读完 {finishedBooks} 本</div>
+                        <div className="text-xs" style={{ color: activeThemeObj.subtextColor }}>书房里有</div>
+                        <div className="text-3xl font-extrabold my-1" style={{ color: activeThemeObj.textColor }}>{totalBooks} 本书</div>
+                        <div className="text-xs" style={{ color: activeThemeObj.subtextColor }}>共同读完 {finishedBooks} 本</div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 mb-4">
-                        <div className="bg-white rounded-2xl p-4 text-center border border-[#e3d5c5]/50 shadow-sm">
-                            <div className="text-xs text-[#8c827a]">我的累计阅读</div>
-                            <div className="text-lg font-bold mt-1">14 小时 30 分</div>
+                        <div className="rounded-2xl p-4 text-center border shadow-sm" style={{ backgroundColor: activeThemeObj.cardBg, borderColor: activeThemeObj.borderColor }}>
+                            <div className="text-xs" style={{ color: activeThemeObj.subtextColor }}>我的累计阅读</div>
+                            <div className="text-lg font-bold mt-1" style={{ color: activeThemeObj.textColor }}>{readingTimeText}</div>
                         </div>
-                        <div className="bg-white rounded-2xl p-4 text-center border border-[#e3d5c5]/50 shadow-sm">
-                            <div className="text-xs text-[#8c827a]">Char 统一共读</div>
-                            <div className="text-lg font-bold mt-1">{totalBooks} 本</div>
+                        <div className="rounded-2xl p-4 text-center border shadow-sm" style={{ backgroundColor: activeThemeObj.cardBg, borderColor: activeThemeObj.borderColor }}>
+                            <div className="text-xs" style={{ color: activeThemeObj.subtextColor }}>Char 共读参与</div>
+                            <div className="text-lg font-bold mt-1" style={{ color: activeThemeObj.textColor }}>{participatingCharsCount} 位</div>
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-2xl p-4 mb-4 border border-[#e3d5c5]/50 shadow-sm">
-                        <div className="text-xs text-[#8c827a] mb-2">书房</div>
-                        <div className="h-2 bg-[#ede6dc] rounded-full overflow-hidden flex">
-                            <div className="bg-[#9e2a2b] h-full" style={{ width: `${totalBooks ? (readingBooks/totalBooks)*100 : 0}%` }} />
-                            <div className="bg-[#3b6064] h-full" style={{ width: `${totalBooks ? (finishedBooks/totalBooks)*100 : 0}%` }} />
-                            <div className="bg-[#d0c5b6] h-full" style={{ width: `${totalBooks ? (unreadBooks/totalBooks)*100 : 0}%` }} />
+                    <div className="rounded-2xl p-4 mb-4 border shadow-sm" style={{ backgroundColor: activeThemeObj.cardBg, borderColor: activeThemeObj.borderColor }}>
+                        <div className="text-xs mb-2" style={{ color: activeThemeObj.subtextColor }}>书房进度</div>
+                        <div className="h-2 rounded-full overflow-hidden flex" style={{ backgroundColor: activeThemeObj.bg }}>
+                            <div className="h-full transition-all" style={{ width: `${totalBooks ? (readingBooks / totalBooks) * 100 : 0}%`, backgroundColor: activeThemeObj.accentColor }} />
+                            <div className="h-full transition-all bg-[#3b6064]" style={{ width: `${totalBooks ? (finishedBooks / totalBooks) * 100 : 0}%` }} />
+                            <div className="h-full transition-all opacity-40" style={{ width: `${totalBooks ? (unreadBooks / totalBooks) * 100 : 0}%`, backgroundColor: activeThemeObj.borderColor }} />
                         </div>
-                        <div className="flex justify-between text-xs text-[#8c827a] mt-2">
+                        <div className="flex justify-between text-xs mt-2" style={{ color: activeThemeObj.subtextColor }}>
                             <span>{readingBooks} 在读</span>
                             <span>{finishedBooks} 读完</span>
                             <span>{unreadBooks} 未开始</span>
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-2xl p-4 border border-[#e3d5c5]/50 shadow-sm">
-                        <div className="text-xs text-[#8c827a] mb-3">页边</div>
-                        
-                        <div className="flex items-center justify-between py-2 border-b border-[#f4ece1]">
+                    <div className="rounded-2xl p-4 mb-4 border shadow-sm" style={{ backgroundColor: activeThemeObj.cardBg, borderColor: activeThemeObj.borderColor }}>
+                        <div className="text-xs mb-3" style={{ color: activeThemeObj.subtextColor }}>页边动态</div>
+
+                        <div className="flex items-center justify-between py-2 border-b" style={{ borderColor: activeThemeObj.borderColor }}>
                             <span className="text-sm">划线</span>
-                            <div className="flex-1 mx-4 h-1.5 bg-[#efe9e0] rounded-full overflow-hidden">
-                                <div className="h-full bg-[#9e2a2b]" style={{ width: `${Math.min(totalAnnosCount * 10, 100)}%` }} />
+                            <div className="flex-1 mx-4 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: activeThemeObj.bg }}>
+                                <div className="h-full transition-all" style={{ width: `${Math.min(totalHighlights * 10, 100)}%`, backgroundColor: activeThemeObj.accentColor }} />
                             </div>
-                            <span className="text-xs font-semibold">{totalAnnosCount}</span>
+                            <span className="text-xs font-semibold" style={{ color: activeThemeObj.textColor }}>{totalHighlights}</span>
                         </div>
 
-                        <div className="flex items-center justify-between py-2 border-b border-[#f4ece1]">
+                        <div className="flex items-center justify-between py-2 border-b" style={{ borderColor: activeThemeObj.borderColor }}>
                             <span className="text-sm">批注</span>
-                            <div className="flex-1 mx-4 h-1.5 bg-[#efe9e0] rounded-full overflow-hidden">
-                                <div className="h-full bg-[#9e2a2b]" style={{ width: `${Math.min(totalAnnosCount * 8, 100)}%` }} />
+                            <div className="flex-1 mx-4 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: activeThemeObj.bg }}>
+                                <div className="h-full transition-all" style={{ width: `${Math.min(totalAnnosCount * 8, 100)}%`, backgroundColor: activeThemeObj.accentColor }} />
                             </div>
-                            <span className="text-xs font-semibold">{totalAnnosCount}</span>
+                            <span className="text-xs font-semibold" style={{ color: activeThemeObj.textColor }}>{totalAnnosCount}</span>
                         </div>
 
                         <div className="flex items-center justify-between py-2">
                             <span className="text-sm">共读回复</span>
-                            <div className="flex-1 mx-4 h-1.5 bg-[#efe9e0] rounded-full overflow-hidden">
-                                <div className="h-full bg-[#9e2a2b]" style={{ width: `${Math.min(totalReplies * 5, 100)}%` }} />
+                            <div className="flex-1 mx-4 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: activeThemeObj.bg }}>
+                                <div className="h-full transition-all" style={{ width: `${Math.min(totalReplies * 5, 100)}%`, backgroundColor: activeThemeObj.accentColor }} />
                             </div>
-                            <span className="text-xs font-semibold">{totalReplies}</span>
+                            <span className="text-xs font-semibold" style={{ color: activeThemeObj.textColor }}>{totalReplies}</span>
                         </div>
                     </div>
 
-                    <div className="flex justify-center gap-4 mt-8 text-xs text-[#8c827a]">
-                        <span className="font-bold text-[#2b2622]">共读记录</span>
+                    {/* Char 共读排名榜单 */}
+                    <div className="rounded-2xl p-4 border shadow-sm mb-4" style={{ backgroundColor: activeThemeObj.cardBg, borderColor: activeThemeObj.borderColor }}>
+                        <div className="flex items-center justify-between mb-3">
+                            <span className="text-xs font-semibold" style={{ color: activeThemeObj.subtextColor }}>Char 共读贡献排行</span>
+                            <span className="text-[10px]" style={{ color: activeThemeObj.subtextColor }}>按批注量排序</span>
+                        </div>
+                        {charRankings.length === 0 ? (
+                            <div className="text-center py-6 text-xs" style={{ color: activeThemeObj.subtextColor }}>
+                                暂无 Char 批注，快去正文中召唤或委托 Char 批注吧
+                            </div>
+                        ) : (
+                            <div className="space-y-2.5">
+                                {charRankings.map((item, idx) => {
+                                    const maxCount = charRankings[0]?.count || 1;
+                                    const pct = Math.max(8, Math.round((item.count / maxCount) * 100));
+                                    const isTop3 = idx < 3;
+                                    const badgeColors = ["#f59e0b", "#94a3b8", "#b45309"];
+
+                                    return (
+                                        <div key={item.id} className="flex items-center gap-3">
+                                            <div
+                                                className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
+                                                style={{
+                                                    backgroundColor: isTop3 ? badgeColors[idx] : activeThemeObj.bg,
+                                                    color: isTop3 ? "#ffffff" : activeThemeObj.subtextColor,
+                                                }}
+                                            >
+                                                {idx + 1}
+                                            </div>
+                                            <div className="w-8 h-8 rounded-full overflow-hidden border flex-shrink-0" style={{ borderColor: activeThemeObj.borderColor }}>
+                                                {item.avatar ? (
+                                                    <img src={item.avatar} alt={item.name} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center text-xs font-bold" style={{ backgroundColor: activeThemeObj.bg, color: activeThemeObj.textColor }}>
+                                                        {item.name[0]}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center justify-between text-xs mb-1">
+                                                    <span className="font-medium truncate" style={{ color: activeThemeObj.textColor }}>{item.name}</span>
+                                                    <span className="font-semibold ml-2 flex-shrink-0" style={{ color: activeThemeObj.accentColor }}>{item.count} 条</span>
+                                                </div>
+                                                <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: activeThemeObj.bg }}>
+                                                    <div
+                                                        className="h-full rounded-full transition-all"
+                                                        style={{ width: `${pct}%`, backgroundColor: activeThemeObj.accentColor }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex justify-center gap-4 mt-8 mb-4 text-xs" style={{ color: activeThemeObj.subtextColor }}>
+                        <span className="font-bold" style={{ color: activeThemeObj.textColor }}>共读记录</span>
                         <span>/</span>
                         <span className="cursor-pointer" onClick={() => setShowStatsView(false)}>整理书架</span>
                     </div>

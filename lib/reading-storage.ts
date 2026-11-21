@@ -176,6 +176,31 @@ export async function saveProgress(progress: ReadingProgress): Promise<void> {
     _progressCache.set(progress.bookId, progress);
 }
 
+// ── Reading Duration ──
+const TOTAL_READING_SECONDS_KEY = "reading_total_seconds_v1";
+
+export function getAccumulatedReadingSeconds(): number {
+    if (typeof window === "undefined") return 0;
+    try {
+        const raw = localStorage.getItem(TOTAL_READING_SECONDS_KEY);
+        return raw ? parseInt(raw, 10) || 0 : 0;
+    } catch {
+        return 0;
+    }
+}
+
+export function addReadingSeconds(deltaSeconds: number): number {
+    if (typeof window === "undefined" || deltaSeconds <= 0) return getAccumulatedReadingSeconds();
+    try {
+        const cur = getAccumulatedReadingSeconds();
+        const next = cur + Math.round(deltaSeconds);
+        localStorage.setItem(TOTAL_READING_SECONDS_KEY, String(next));
+        return next;
+    } catch {
+        return getAccumulatedReadingSeconds();
+    }
+}
+
 // ── Annotations ──
 
 function annotationKey(bookId: string, chapterIndex: number): string {

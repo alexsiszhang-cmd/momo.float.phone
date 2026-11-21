@@ -16,6 +16,7 @@ import {
     loadReadingInteractionConfig,
     saveReadingInteractionConfig,
     DEFAULT_READING_INTERACTION_CONFIG,
+    addReadingSeconds,
 } from "@/lib/reading-storage";
 import { generateAnnotationBatch, generateReadingChat, parseReadingDiscussResponse, type ReadingDiscussAction, type ReadingDiscussContext } from "@/lib/reading-engine";
 import { loadChatMessages, pushChatMessage, deleteChatMessage, editChatMessage, loadChatContacts, createOrGetSession, isReadingDiscussMessage } from "@/lib/chat-storage";
@@ -247,6 +248,16 @@ export function ReadingViewer({ book, onBack }: Props) {
             window.removeEventListener("reading-appearance-changed", reloadAppearance);
             window.removeEventListener("storage", reloadAppearance);
         };
+    }, []);
+
+    // 统计真实阅读时长（当页面可见且停留在阅读器中时，每 5 秒累计一次时长）
+    useEffect(() => {
+        const timer = setInterval(() => {
+            if (typeof document !== "undefined" && document.visibilityState === "visible") {
+                addReadingSeconds(5);
+            }
+        }, 5000);
+        return () => clearInterval(timer);
     }, []);
     const [chapters, setChapters] = useState<BookChapter[]>([]);
     const [chapterIndex, setChapterIndex] = useState(0);
