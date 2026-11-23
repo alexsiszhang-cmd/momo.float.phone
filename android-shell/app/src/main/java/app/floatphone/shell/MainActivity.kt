@@ -1277,8 +1277,37 @@ private fun deleteCachedSharedVideoInternal(cacheId: String): Boolean {
         webView.setDownloadListener(DownloadListener { url, userAgent, contentDisposition, mimeType, _ ->
             runCatching {
                 if (url.startsWith("blob:") || url.startsWith("data:")) {
-                    // blob/data 由页面内 JS 触发的 a[download] 处理；提示用户等待
-                    Toast.makeText(this, "正在导出…", Toast.LENGTH_SHORT).show()
+                    // 提取文件名与类型，注入 JS 将 blob 转换为 base64 后调用原生保存通道
+                    val guessedName = safeDownloadName(android.webkit.URLUtil.guessFileName(url, contentDisposition, mimeType))
+                    val js = """
+                        (function() {
+                            try {
+                                var xhr = new XMLHttpRequest();
+                                xhr.open('GET', '$url', true);
+                                xhr.responseType = 'blob';
+                                xhr.onload = function() {
+                                    if (this.status === 200 || this.status === 0) {
+                                        var reader = new FileReader();
+                                        reader.onloadend = function() {
+                                            var b64 = reader.result;
+                                            if (typeof b64 === 'string') {
+                                                var comma = b64.indexOf(',');
+                                                var rawB64 = comma >= 0 ? b64.slice(comma + 1) : b64;
+                                                if (window.AndroidShell && window.AndroidShell.saveBase64File) {
+                                                    window.AndroidShell.saveBase64File('$guessedName', rawB64);
+                                                }
+                                            }
+                                        };
+                                        reader.readAsDataURL(this.response);
+                                    }
+                                };
+                                xhr.onerror = function() {};
+                                xhr.send();
+                            } catch (e) {}
+                        })();
+                    """.trimIndent()
+                    webView.evaluateJavascript(js, null)
+                    Toast.makeText(this, "正在导出到「下载」目录…", Toast.LENGTH_SHORT).show()
                     return@DownloadListener
                 }
                 val request = DownloadManager.Request(Uri.parse(url)).apply {
