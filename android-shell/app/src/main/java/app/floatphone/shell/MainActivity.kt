@@ -1033,16 +1033,6 @@ private fun deleteCachedSharedVideoInternal(cacheId: String): Boolean {
     return file.delete() || !file.exists()
 }
 
-    override fun onStart() {
-        super.onStart()
-        isForeground = true
-    }
-
-    override fun onStop() {
-        isForeground = false
-        super.onStop()
-    }
-
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -1519,6 +1509,7 @@ private fun deleteCachedSharedVideoInternal(cacheId: String): Boolean {
      * 由系统直接给，不受 JS 是否还在跑影响。
      */
     override fun onStop() {
+        isForeground = false
         super.onStop()
         if (!recoveryBoot) {
             runCatching { CallOverlayService.onHostBackground() }
@@ -1528,6 +1519,7 @@ private fun deleteCachedSharedVideoInternal(cacheId: String): Boolean {
 
     override fun onStart() {
         super.onStart()
+        isForeground = true
         if (!recoveryBoot) {
             runCatching { CallOverlayService.onHostForeground() }
             runCatching { CheckInService.onHostForeground() }

@@ -218,19 +218,3 @@ class PhoneWidgetProvider : AppWidgetProvider() {
         appWidgetIds.forEach { removeProfileAssignment(context, it) }
     }
 }
-
-/** Receives Android's confirmation that a pinned widget instance was really added. */
-class PhoneWidgetPinReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent?) {
-        val widgetId = intent?.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
-            ?: AppWidgetManager.INVALID_APPWIDGET_ID
-        if (widgetId == AppWidgetManager.INVALID_APPWIDGET_ID) return
-        val profileId = intent?.getStringExtra(PhoneWidgetProvider.EXTRA_PROFILE_ID)
-            ?: intent?.data?.lastPathSegment?.let { Uri.decode(it) }
-            ?: "default"
-        PhoneWidgetProvider.assignProfile(context, widgetId, profileId)
-        val (widthDp, heightDp, scale) = PhoneWidgetProvider.loadSize(context, profileId)
-        PhoneWidgetRenderer.renderCached(context, profileId, widthDp, heightDp, scale)
-        PhoneWidgetProvider.updateOne(context, AppWidgetManager.getInstance(context), widgetId)
-    }
-}
