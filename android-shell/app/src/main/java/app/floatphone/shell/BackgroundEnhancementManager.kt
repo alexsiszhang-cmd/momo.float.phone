@@ -136,7 +136,7 @@ object BackgroundEnhancementManager {
                     if (foreground) existing.optLong("remainingMs") == nextRemaining
                     else existing.optLong("dueAt") > 0L && kotlin.math.abs(existing.optLong("dueAt") - desiredBackgroundDueAt) < 60_000L
                 } else existing.optLong("dueAt") == nextDueAt
-                if (sameTarget && !existing.optBoolean("fired")) return@synchronized true
+                if (sameTarget && !existing.optBoolean("fired")) return@runCatching true
                 cancelAlarm(context, id)
                 existing.put("name", characterName.take(80))
                     .put("backgroundOnly", backgroundOnly)
@@ -153,22 +153,20 @@ object BackgroundEnhancementManager {
                     .put("fired", false))
             }
             writeTasks(context, tasks)
-            if (mode(context) != MODE_ENHANCED) return@synchronized Unit
-            if (backgroundOnly) {
-                if (!foreground) {
-                    val due = System.currentTimeMillis() + nextRemaining
-                    findTask(tasks, id)?.put("dueAt", due)
-                    writeTasks(context, tasks)
-                    scheduleAlarm(context, id, due)
+            if (mode(context) == MODE_ENHANCED) {
+                if (backgroundOnly) {
+                    if (!foreground) {
+                        val due = System.currentTimeMillis() + nextRemaining
+                        findTask(tasks, id)?.put("dueAt", due)
+                        writeTasks(context, tasks)
+                        scheduleAlarm(context, id, due)
+                    }
                 } else {
-                    Unit
+                    scheduleAlarm(context, id, nextDueAt)
                 }
-            } else {
-                scheduleAlarm(context, id, nextDueAt)
             }
-            Unit
+            true
         }
-        true
     }.getOrDefault(false)
 
     fun cancelCheckIn(context: Context, characterId: String): Boolean = runCatching {
