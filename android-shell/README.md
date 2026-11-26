@@ -50,6 +50,18 @@ Android Shell 是一个原生 Android 应用外壳：使用 WebView 加载用户
 
 ### 正式签名 Secrets
 
+你可以选择以下两种方式之一配置签名：
+
+#### 方式 A：兔版密码短语模式（推荐小白用户，无须电脑）
+1. 在仓库 `Settings → Secrets and variables → Actions` 中新建 Secret：
+   - 名称：`RF_SIGNING_PASSPHRASE`
+   - 内容：设置一串包含字母与数字的随机密码（建议 20 位以上）。
+2. 在 Actions 运行工作流时：
+   - 首次打包：`signing_action` 选择 **`initialize`**（会在云端自动生成密钥并加密备份到仓库 `rf-signing` 分支）。
+   - 以后更新：`signing_action` 保持默认 **`build`**。
+
+#### 方式 B：传统 Base64 模式（适合专业开发者）
+
 | Secret | 含义 |
 |---|---|
 | `SHELL_KEYSTORE_BASE64` | keystore 文件的 Base64 内容 |
@@ -57,7 +69,7 @@ Android Shell 是一个原生 Android 应用外壳：使用 WebView 加载用户
 | `SHELL_KEY_ALIAS` | 密钥别名 |
 | `SHELL_KEY_PASSWORD` | 密钥密码 |
 
-设置了 `SHELL_KEYSTORE_BASE64` 后，其他三项必须同时存在，否则工作流会明确失败。签名密钥应离线备份，不能提交到仓库。
+设置了 `SHELL_KEYSTORE_BASE64` 后，其他三项必须同时存在。
 
 Android 覆盖安装要求签名证书匹配。不要通过卸载旧版来解决签名冲突，除非已经确认数据备份可恢复。debug 与 release 是否能互相覆盖，取决于实际构建使用的证书；请用 `apksigner verify --print-certs` 比较证书，不要依赖文件名推断。
 

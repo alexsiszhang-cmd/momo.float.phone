@@ -7,6 +7,14 @@ on:
         description: "要加载的自部署站点地址（https://…）"
         required: false
         type: string
+      signing_action:
+        description: "签名动作 (build: 正常/自动打包 | initialize: 首次初始化专属签名)"
+        required: false
+        default: "build"
+        type: choice
+        options:
+          - build
+          - initialize
   push:
     branches: [main, feature/life-system, feature/life-system-mainline]
     paths: ["android-shell/**", ".github/workflows/android-shell.yml", "scripts/check-android-permissions.mjs", "!android-shell/**/*.md"]
@@ -15,20 +23,24 @@ on:
     paths: ["android-shell/**", ".github/workflows/android-shell.yml", "scripts/check-android-permissions.mjs", "!android-shell/**/*.md"]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    # 可选签名：仓库 Secrets 配置了 SHELL_KEYSTORE_BASE64 等四项时产出已签名 release
+    # 可选签名：支持 Base64 Secret 模式 或 兔版密码短语 (RF_SIGNING_PASSPHRASE) 模式
     env:
       SHELL_KEYSTORE_BASE64: ${{ secrets.SHELL_KEYSTORE_BASE64 }}
       SHELL_KEYSTORE_PASSWORD: ${{ secrets.SHELL_KEYSTORE_PASSWORD }}
       SHELL_KEY_ALIAS: ${{ secrets.SHELL_KEY_ALIAS }}
       SHELL_KEY_PASSWORD: ${{ secrets.SHELL_KEY_PASSWORD }}
+      RF_SIGNING_PASSPHRASE: ${{ secrets.RF_SIGNING_PASSPHRASE }}
       SHELL_SITE_URL: ${{ inputs.site_url || vars.SHELL_SITE_URL }}
+      SIGNING_ACTION: ${{ inputs.signing_action || 'build' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Check Android manifest permission baseline and version parity
         run: node scripts/check-android-permissions.mjs
@@ -44,11 +56,69 @@ jobs:
         with:
           gradle-version: "8.11.1"
 
-      - name: Decode keystore (optional)
+      - name: Decode keystore (Base64 Secret mode)
         if: ${{ env.SHELL_KEYSTORE_BASE64 != '' }}
         run: |
           echo "$SHELL_KEYSTORE_BASE64" | base64 -d > /tmp/shell.keystore
           echo "SHELL_KEYSTORE_FILE=/tmp/shell.keystore" >> "$GITHUB_ENV"
+
+      - name: Initialize & Backup Keystore (Passphrase mode)
+        if: ${{ env.SHELL_KEYSTORE_BASE64 == '' && env.RF_SIGNING_PASSPHRASE != '' && env.SIGNING_ACTION == 'initialize' }}
+        run: |
+          if [ ${#RF_SIGNING_PASSPHRASE} -lt 12 ]; then
+            echo "::error::RF_SIGNING_PASSPHRASE 密码建议 20 位以上！"
+            exit 1
+          fi
+
+          keytool -genkeypair -v \
+            -keystore /tmp/shell.keystore \
+            -alias androidshellkey \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass "$RF_SIGNING_PASSPHRASE" \
+            -keypass "$RF_SIGNING_PASSPHRASE" \
+            -dname "CN=FloatShell, OU=App, O=Float, L=City, ST=State, C=CN"
+
+          openssl enc -aes-256-cbc -salt -pbkdf2 \
+            -in /tmp/shell.keystore \
+            -out /tmp/signing.backup.enc \
+            -k "$RF_SIGNING_PASSPHRASE"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -B rf-signing
+          cp /tmp/signing.backup.enc ./signing.backup.enc
+          git add signing.backup.enc
+          git commit -m "chore: initial automated keystore backup [skip ci]"
+          git push origin rf-signing --force
+
+          echo "SHELL_KEYSTORE_FILE=/tmp/shell.keystore" >> "$GITHUB_ENV"
+          echo "SHELL_KEYSTORE_PASSWORD=$RF_SIGNING_PASSPHRASE" >> "$GITHUB_ENV"
+          echo "SHELL_KEY_ALIAS=androidshellkey" >> "$GITHUB_ENV"
+          echo "SHELL_KEY_PASSWORD=$RF_SIGNING_PASSPHRASE" >> "$GITHUB_ENV"
+
+      - name: Restore Keystore from Branch (Passphrase mode)
+        if: ${{ env.SHELL_KEYSTORE_BASE64 == '' && env.RF_SIGNING_PASSPHRASE != '' && env.SIGNING_ACTION == 'build' }}
+        run: |
+          git fetch origin rf-signing:rf-signing || true
+          if ! git show rf-signing:signing.backup.enc > /tmp/signing.backup.enc 2>/devnull; then
+            echo "::error::未找到签名备份文件！如果你是首次打包，请运行工作流时在 signing_action 中选择 initialize。"
+            exit 1
+          fi
+
+          openssl enc -d -aes-256-cbc -pbkdf2 \
+            -in /tmp/signing.backup.enc \
+            -out /tmp/shell.keystore \
+            -k "$RF_SIGNING_PASSPHRASE" || {
+              echo "::error::密钥解密失败！请检查 RF_SIGNING_PASSPHRASE 密码是否与初始化时一致。"
+              exit 1
+            }
+
+          echo "SHELL_KEYSTORE_FILE=/tmp/shell.keystore" >> "$GITHUB_ENV"
+          echo "SHELL_KEYSTORE_PASSWORD=$RF_SIGNING_PASSPHRASE" >> "$GITHUB_ENV"
+          echo "SHELL_KEY_ALIAS=androidshellkey" >> "$GITHUB_ENV"
+          echo "SHELL_KEY_PASSWORD=$RF_SIGNING_PASSPHRASE" >> "$GITHUB_ENV"
 
       - name: Validate optional release signing secrets
         shell: bash
@@ -60,6 +130,8 @@ jobs:
                 exit 1
               fi
             done
+          elif [[ -n "$SHELL_KEYSTORE_FILE" ]]; then
+            echo "Using keystore configured from environment/passphrase mode."
           else
             echo "No release keystore configured. Only the installable debug APK will be published; unsigned release APKs are intentionally skipped."
           fi
