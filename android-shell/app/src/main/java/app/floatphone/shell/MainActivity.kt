@@ -85,6 +85,7 @@ class MainActivity : AppCompatActivity() {
          * 只需要管一个开关。渠道一旦创建过，后建的只更新名称/描述，不会重置用户选择。
          */
         const val CH_MESSAGES = "shell_messages"
+        @Volatile @JvmStatic var isForeground = false
         @Volatile private var nativeCrashRecorderInstalled = false
         private const val MAX_WEB_CONSOLE_LOGS = 200
         private val webConsoleLogs = java.util.Collections.synchronizedList(mutableListOf<String>())
@@ -1031,6 +1032,16 @@ private fun deleteCachedSharedVideoInternal(cacheId: String): Boolean {
     if (file.parentFile != directory) return false
     return file.delete() || !file.exists()
 }
+
+    override fun onStart() {
+        super.onStart()
+        isForeground = true
+    }
+
+    override fun onStop() {
+        isForeground = false
+        super.onStop()
+    }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
