@@ -18,18 +18,21 @@ type CheckInBridgeLike = {
   stopCheckIn?: () => void;
   requestCheckIn?: (characterId: string, name: string, avatar: string) => void;
   getCheckInDiagnostics?: () => string;
+  getCheckInAppState?: () => string;
+  getBackgroundEnhancementDiagnostics?: () => string;
+  scheduleBackgroundCheckIn?: (characterId: string, characterName: string, dueAtMillis: number, remainingBackgroundMs: number, backgroundOnly: boolean) => boolean;
+  cancelBackgroundCheckIn?: (characterId: string) => boolean;
+  getDiagnosticsSnapshot?: () => string;
+  openAccessibilitySettings?: () => void;
   consumePendingUserShot?: () => string;
+  scheduleFocusPassCheckIn?: (json: string) => string;
+  cancelFocusPassCheckIn?: (passId: string) => boolean;
+  consumePendingFocusPassCheckIn?: () => string;
   setScreenshotShareTargets?: (json: string) => boolean;
   getScreenshotShareTargets?: () => string;
   /** 查岗 / 截屏确认浮层的配色（老 APK 没有） */
   getCheckInTheme?: () => string;
   setCheckInTheme?: (json: string) => boolean;
-  scheduleNativeCheckIn?: (json: string) => boolean;
-  cancelNativeCheckIn?: () => void;
-  consumePendingCheckIn?: () => string;
-  hasPendingCheckIn?: () => boolean;
-  getNativeCheckInDiagnostics?: () => string;
-  notifyCheckInUnavailable?: (characterName: string) => void;
 };
 
 function bridge(): CheckInBridgeLike | null {
@@ -38,88 +41,41 @@ function bridge(): CheckInBridgeLike | null {
   return candidate && typeof candidate === "object" ? candidate : null;
 }
 
-/**
- * 将网页算出的下一次触发时间交给原生闹钟。闹钟只通知，不会后台截屏。
- * 返回 false 表示当前是浏览器或旧版 APK，没有原生调度能力。
- */
-export function scheduleNativeCheckIn(payload: {
-  characterId: string;
-  name: string;
-  dueAt: number;
-  configKey?: string;
-}): boolean {
+/** 读取原生 Activity 生命周期与累计后台时长。旧 APK 返回 unavailable。 */
+/** Schedule/cancel native one-shot wake-up reminders. Old APKs safely no-op. */
+export function scheduleNativeCheckIn(
+  characterId: string,
+  characterName: string,
+  dueAtMillis: number,
+  remainingBackgroundMs: number,
+  backgroundOnly: boolean,
+): boolean {
   try {
-    return bridge()?.scheduleNativeCheckIn?.(JSON.stringify(payload)) === true;
+    return bridge()?.scheduleBackgroundCheckIn?.(
+      characterId, characterName, dueAtMillis, remainingBackgroundMs, backgroundOnly,
+    ) === true;
   } catch {
     return false;
   }
 }
 
-/** 没有任何角色启用查岗时取消原生闹钟。 */
-export function cancelNativeCheckIn(): void {
-  try { bridge()?.cancelNativeCheckIn?.(); } catch { /* 忽略 */ }
+export function cancelNativeCheckIn(characterId: string): void {
+  try { bridge()?.cancelBackgroundCheckIn?.(characterId); } catch { /* old APK / bridge unavailable */ }
 }
 
-/** 原生闹钟状态：只返回计划时间与队列状态，不含截图内容。 */
-export type NativeCheckInDiagnostics = {
-  scheduled: boolean;
-  characterName: string;
-  characterId: string;
-  configKey: string;
-  dueAt: number;
-  pending: boolean;
-  opened: boolean;
-  accessibilityConnected: boolean;
-  accessibilityEnabledInSettings: boolean;
-  notificationsEnabled: boolean;
-  ignoringBatteryOptimizations: boolean;
-};
-
-export function readNativeCheckInDiagnostics(): NativeCheckInDiagnostics | null {
+export function readCheckInAppState(): import("./checkin-config").CheckInAppState {
   try {
-    const raw = bridge()?.getNativeCheckInDiagnostics?.();
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<NativeCheckInDiagnostics>;
+    const raw = bridge()?.getCheckInAppState?.();
+    if (!raw) return { available: false, foreground: true, backgroundElapsedMs: 0 };
+    const parsed = JSON.parse(raw) as Partial<import("./checkin-config").CheckInAppState>;
     return {
-      scheduled: parsed.scheduled === true,
-      characterName: typeof parsed.characterName === "string" ? parsed.characterName : "",
-      characterId: typeof parsed.characterId === "string" ? parsed.characterId : "",
-      configKey: typeof parsed.configKey === "string" ? parsed.configKey : "",
-      dueAt: Number(parsed.dueAt) || 0,
-      pending: parsed.pending === true,
-      opened: parsed.opened === true,
-      accessibilityConnected: parsed.accessibilityConnected === true,
-      accessibilityEnabledInSettings: parsed.accessibilityEnabledInSettings === true,
-      notificationsEnabled: parsed.notificationsEnabled === true,
-      ignoringBatteryOptimizations: parsed.ignoringBatteryOptimizations === true,
+      available: parsed.available === true,
+      foreground: parsed.foreground !== false,
+      backgroundElapsedMs: Number.isFinite(parsed.backgroundElapsedMs) ? Math.max(0, Number(parsed.backgroundElapsedMs)) : 0,
     };
   } catch {
-    return null;
+    return { available: false, foreground: true, backgroundElapsedMs: 0 };
   }
-}
-
-/** 通知点击后是否有待处理查岗；用于跳过启动页，直达处理流程。 */
-export function hasPendingNativeCheckIn(): boolean {
-  try { return bridge()?.hasPendingCheckIn?.() === true; } catch { return false; }
-}
-
-/** 用户点击原生查岗提醒后，读取待处理角色 id。读取即清空。 */
-export function consumePendingNativeCheckIn(): string | null {
-  try {
-    const raw = bridge()?.consumePendingCheckIn?.();
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as { characterId?: unknown };
-    return typeof parsed.characterId === "string" && parsed.characterId.trim()
-      ? parsed.characterId.trim()
-      : null;
-  } catch {
-    return null;
-  }
-}
-
-/** 无障碍实例断连时显示 Android 原生修复通知（浏览器/旧壳自动忽略）。 */
-export function notifyCheckInUnavailable(characterName: string): void {
-  try { bridge()?.notifyCheckInUnavailable?.(characterName); } catch { /* 通知失败不影响主流程 */ }
 }
 
 /** 壳是否提供查岗浮层（老 APK 没有）。 */
@@ -149,7 +105,7 @@ export function consumePendingUserShot(): CheckInOutcome | null {
   try {
     const raw = bridge()?.consumePendingUserShot?.();
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as { accepted?: boolean; base64?: string; width?: number; height?: number; bytes?: number; reply?: string; reason?: string; characterId?: string };
+    const parsed = JSON.parse(raw) as { accepted?: boolean; base64?: string; width?: number; height?: number; reply?: string; reason?: string; characterId?: string };
     const reply = typeof parsed?.reply === "string" && parsed.reply.trim() ? parsed.reply.trim() : undefined;
     // 目标角色：浮层里当场选的那个（或者设了默认角色时的默认值）。
     // 老壳不带这个字段 → undefined，调用方退回「最近聊过的私聊会话」。
@@ -162,7 +118,6 @@ export function consumePendingUserShot(): CheckInOutcome | null {
         base64: parsed.base64,
         width: typeof parsed.width === "number" ? parsed.width : 0,
         height: typeof parsed.height === "number" ? parsed.height : 0,
-        bytes: typeof parsed.bytes === "number" ? parsed.bytes : undefined,
         reply,
         characterId,
       };
@@ -177,6 +132,66 @@ export function consumePendingUserShot(): CheckInOutcome | null {
 export function supportsShareTargets(): boolean {
   return typeof bridge()?.setScreenshotShareTargets === "function";
 }
+
+/** 专注通行证查岗的原生结果（浮层在进程被杀时也能弹，结果先落盘）。 */
+export type FocusPassCheckInOutcome = {
+  passId: string;
+  app: string;
+  characterId?: string;
+  accepted: boolean;
+  base64?: string;
+  width?: number;
+  height?: number;
+  reply?: string;
+  reason?: string;
+};
+
+/** 排一个原生查岗闹钟：到点直接弹 CheckInService 浮层，不依赖网页进程。 */
+export function scheduleFocusPassCheckIn(payload: {
+  passId: string;
+  app: string;
+  characterId: string;
+  name: string;
+  avatar?: string;
+  dueAt: number;
+}): boolean {
+  try {
+    const raw = bridge()?.scheduleFocusPassCheckIn?.(JSON.stringify(payload));
+    if (!raw) return false;
+    const parsed = JSON.parse(raw) as { ok?: boolean };
+    return parsed?.ok === true;
+  } catch {
+    return false;
+  }
+}
+
+export function cancelFocusPassCheckIn(passId: string): void {
+  try { bridge()?.cancelFocusPassCheckIn?.(passId); } catch { /* old APK */ }
+}
+
+/** 读走原生查岗结果（读后即清）。没有结果/老壳返回 null。 */
+export function consumePendingFocusPassCheckIn(): FocusPassCheckInOutcome | null {
+  try {
+    const raw = bridge()?.consumePendingFocusPassCheckIn?.();
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<FocusPassCheckInOutcome>;
+    if (!parsed || typeof parsed !== "object" || !parsed.passId) return null;
+    return {
+      passId: String(parsed.passId),
+      app: typeof parsed.app === "string" ? parsed.app : "",
+      characterId: typeof parsed.characterId === "string" && parsed.characterId.trim() ? parsed.characterId.trim() : undefined,
+      accepted: parsed.accepted === true,
+      base64: typeof parsed.base64 === "string" && parsed.base64 ? parsed.base64 : undefined,
+      width: typeof parsed.width === "number" ? parsed.width : 0,
+      height: typeof parsed.height === "number" ? parsed.height : 0,
+      reply: typeof parsed.reply === "string" && parsed.reply.trim() ? parsed.reply.trim() : undefined,
+      reason: typeof parsed.reason === "string" ? parsed.reason : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
 
 /**
  * 把「可分享角色清单 + 默认角色」交给原生保管。
@@ -225,7 +240,15 @@ export function readCheckInDiagnostics(): CheckInDiagnostics | null {
     const raw = bridge()?.getCheckInDiagnostics?.();
     if (!raw) return null;
     const parsed = JSON.parse(raw) as CheckInDiagnostics;
-    return parsed && typeof parsed === "object" ? parsed : null;
+    if (!parsed || typeof parsed !== "object") return null;
+    try {
+      const snapshotRaw = bridge()?.getDiagnosticsSnapshot?.();
+      if (snapshotRaw) {
+        const snapshot = JSON.parse(snapshotRaw) as { permissions?: { accessibility?: boolean } };
+        if (typeof snapshot.permissions?.accessibility === "boolean") parsed.systemAccessibilityEnabled = snapshot.permissions.accessibility;
+      }
+    } catch { /* older shell versions may not expose the system permission snapshot */ }
+    return parsed;
   } catch {
     return null;
   }
@@ -235,6 +258,11 @@ export function readCheckInDiagnostics(): CheckInDiagnostics | null {
  * 预热查岗服务。用户开启任一角色的查岗时（App 在前台）调用一次。
  * 返回是否成功发起；false 多半是没给浮窗权限。
  */
+/** Open Android's Accessibility settings so the user can reconnect the service. */
+export function openNativeAccessibilitySettings(): void {
+  try { bridge()?.openAccessibilitySettings?.(); } catch { /* best effort */ }
+}
+
 export function prepareCheckInService(): boolean {
   try {
     return bridge()?.prepareCheckIn?.() === true;
@@ -278,21 +306,20 @@ export function requestCheckIn(
     }
 
     let settled = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    let unsubscribe: (() => void) | undefined;
+    const cleanup: { timer?: ReturnType<typeof setTimeout>; unsubscribe?: () => void } = {};
 
     // 用户随口说的那句话（同意/拒绝都可能有），统一在下面几处带进结果里。
     const finish = (result: CheckInOutcome) => {
       if (settled) return;
       settled = true;
-      if (timer) clearTimeout(timer);
-      unsubscribe?.();
+      if (cleanup.timer) clearTimeout(cleanup.timer);
+      cleanup.unsubscribe?.();
       resolve(result);
     };
 
     // 先订阅、再请求：浮层若很快出结果，反过来会漏掉事件。
     ensureShellOverlayListener();
-    unsubscribe = subscribeShellOverlayEvents((event) => {
+    cleanup.unsubscribe = subscribeShellOverlayEvents((event) => {
       if (event.action !== "checkIn") return;
       // 同一时刻可能只有一次查岗，但仍按 characterId 校验，避免张冠李戴
       if (event.characterId && event.characterId !== characterId) return;
@@ -310,7 +337,7 @@ export function requestCheckIn(
       finish({ accepted: false, reason: event.reason || "user_rejected", reply });
     });
 
-    timer = setTimeout(() => {
+    cleanup.timer = setTimeout(() => {
       finish({ accepted: false, reason: "timeout" });
     }, Math.max(1000, timeoutMs));
 
