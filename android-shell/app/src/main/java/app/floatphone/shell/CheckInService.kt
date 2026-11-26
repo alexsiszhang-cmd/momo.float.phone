@@ -370,6 +370,18 @@ class CheckInService : Service() {
             }
         }
 
+        /** 专注通行证闹钟触发：到点拉起查岗/确认浮层。 */
+        fun showFromAlarm(
+            context: Context,
+            characterId: String,
+            name: String,
+            avatar: String,
+            passId: String = "",
+            app: String = "",
+        ) {
+            show(context, characterId, name, avatar, SOURCE_CHECK_IN)
+        }
+
         /** 宿主 Activity 进后台。 */
         fun onHostBackground() {
             hostInForeground = false
