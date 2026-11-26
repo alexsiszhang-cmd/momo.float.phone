@@ -112,7 +112,6 @@ class FocusLockService : Service() {
                 polling = false
                 BlockingActivity.dismissCurrent()
                 postNotify("🔒 看守锁已解除", "专注时段结束，手机应用恢复自由。")
-                FocusWidgetProvider.pushAll(this@FocusLockService)
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
                 return
