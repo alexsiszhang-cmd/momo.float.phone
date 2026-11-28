@@ -29,8 +29,13 @@ type FloatShellBridge = {
 
 function readFloatShellBridge(): FloatShellBridge | null {
     if (typeof window === "undefined" || typeof navigator === "undefined") return null;
+    const win = window as unknown as { AndroidShell?: FloatShellBridge; NativeRealityBridge?: FloatShellBridge };
+    const bridge = win.AndroidShell ?? win.NativeRealityBridge;
+    if (bridge && (typeof bridge.saveBase64File === "function" || typeof bridge.beginChunkedFile === "function")) {
+        return bridge;
+    }
     if (!navigator.userAgent.includes(FLOAT_SHELL_UA_MARK)) return null;
-    return (window as unknown as { AndroidShell?: FloatShellBridge }).AndroidShell ?? null;
+    return win.AndroidShell ?? win.NativeRealityBridge ?? null;
 }
 
 /** 是否运行在 android-shell 壳内（普通浏览器/iOS 均为 false）。 */
