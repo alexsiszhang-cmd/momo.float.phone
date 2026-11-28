@@ -102,7 +102,7 @@ jobs:
         if: ${{ env.SHELL_KEYSTORE_BASE64 == '' && env.RF_SIGNING_PASSPHRASE != '' && env.SIGNING_ACTION == 'build' }}
         run: |
           git fetch origin rf-signing:rf-signing || true
-          if ! git show rf-signing:signing.backup.enc > /tmp/signing.backup.enc 2>/devnull; then
+          if ! git show rf-signing:signing.backup.enc > /tmp/signing.backup.enc 2>/dev/null; then
             echo "::error::未找到签名备份文件！如果你是首次打包，请运行工作流时在 signing_action 中选择 initialize。"
             exit 1
           fi
