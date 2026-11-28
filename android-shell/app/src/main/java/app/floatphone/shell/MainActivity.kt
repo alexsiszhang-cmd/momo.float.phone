@@ -2410,35 +2410,40 @@ private fun deleteCachedSharedVideoInternal(cacheId: String): Boolean {
          */
         @JavascriptInterface
         fun saveBase64File(fileName: String, base64: String): Boolean {
-            // 保存到公共下载目录是用户主动动作；不再被“可信页面”门禁挡住，
-            // 否则保存图片会只返回 false，而网页只能看到“原生保存接口失败”。
             return runCatching {
-            val safeName = fileName
-                .replace(Regex("[\\\\/:*?\"<>|]"), "_")
-                .trim()
-                .ifBlank { "download" }
-                .take(120)
-            val bytes = Base64.decode(base64, Base64.DEFAULT)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val values = ContentValues().apply {
-                    put(MediaStore.Downloads.DISPLAY_NAME, safeName)
-                    put(MediaStore.Downloads.MIME_TYPE, guessMimeType(safeName))
-                    put(MediaStore.Downloads.IS_PENDING, 1)
+                val safeName = fileName
+                    .replace(Regex("[\\\\/:*?\"<>|]"), "_")
+                    .trim()
+                    .ifBlank { "download" }
+                    .take(120)
+                val bytes = Base64.decode(base64, Base64.DEFAULT)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    runCatching {
+                        val values = ContentValues().apply {
+                            put(MediaStore.Downloads.DISPLAY_NAME, safeName)
+                            put(MediaStore.Downloads.MIME_TYPE, guessMimeType(safeName))
+                            put(MediaStore.Downloads.IS_PENDING, 1)
+                        }
+                        val uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                        if (uri != null) {
+                            val stream = contentResolver.openOutputStream(uri)
+                            if (stream != null) {
+                                stream.use { it.write(bytes) }
+                                values.clear()
+                                values.put(MediaStore.Downloads.IS_PENDING, 0)
+                                contentResolver.update(uri, values, null, null)
+                                return@runCatching true
+                            }
+                        }
+                    }
                 }
-                val uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
-                    ?: return@runCatching false
-                contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
-                    ?: return@runCatching false
-                values.clear()
-                values.put(MediaStore.Downloads.IS_PENDING, 0)
-                contentResolver.update(uri, values, null, null)
-            } else {
                 @Suppress("DEPRECATION")
                 val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                    ?: getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+                    ?: filesDir
                 if (!dir.exists()) dir.mkdirs()
                 FileOutputStream(File(dir, safeName)).use { it.write(bytes) }
-            }
-            true
+                true
             }.onFailure { error ->
                 synchronized(webConsoleLogs) {
                     webConsoleLogs.add("saveBase64File failed: " + (error.message ?: error.javaClass.simpleName))
@@ -2468,23 +2473,31 @@ private fun deleteCachedSharedVideoInternal(cacheId: String): Boolean {
             return runCatching {
                 val token = UUID.randomUUID().toString()
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    val values = ContentValues().apply {
-                        put(MediaStore.Downloads.DISPLAY_NAME, safeName)
-                        put(MediaStore.Downloads.MIME_TYPE, guessMimeType(safeName))
-                        put(MediaStore.Downloads.IS_PENDING, 1)
+                    val uri = runCatching {
+                        val values = ContentValues().apply {
+                            put(MediaStore.Downloads.DISPLAY_NAME, safeName)
+                            put(MediaStore.Downloads.MIME_TYPE, guessMimeType(safeName))
+                            put(MediaStore.Downloads.IS_PENDING, 1)
+                        }
+                        contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                    }.getOrNull()
+                    if (uri != null) {
+                        val stream = contentResolver.openOutputStream(uri)
+                        if (stream != null) {
+                            chunkedFileWrites[token] = ChunkedFileWrite(uri, null, stream)
+                            return@runCatching token
+                        } else {
+                            contentResolver.delete(uri, null, null)
+                        }
                     }
-                    val uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
-                        ?: return@runCatching ""
-                    val stream = contentResolver.openOutputStream(uri)
-                        ?: run { contentResolver.delete(uri, null, null); return@runCatching "" }
-                    chunkedFileWrites[token] = ChunkedFileWrite(uri, null, stream)
-                } else {
-                    @Suppress("DEPRECATION")
-                    val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-                    if (!dir.exists()) dir.mkdirs()
-                    val file = File(dir, safeName)
-                    chunkedFileWrites[token] = ChunkedFileWrite(null, file, FileOutputStream(file))
                 }
+                @Suppress("DEPRECATION")
+                val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                    ?: getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+                    ?: filesDir
+                if (!dir.exists()) dir.mkdirs()
+                val file = File(dir, safeName)
+                chunkedFileWrites[token] = ChunkedFileWrite(null, file, FileOutputStream(file))
                 token
             }.getOrDefault("")
         }
