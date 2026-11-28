@@ -2418,7 +2418,7 @@ private fun deleteCachedSharedVideoInternal(cacheId: String): Boolean {
                     .take(120)
                 val bytes = Base64.decode(base64, Base64.DEFAULT)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    runCatching {
+                    val mediaStoreSuccess = runCatching {
                         val values = ContentValues().apply {
                             put(MediaStore.Downloads.DISPLAY_NAME, safeName)
                             put(MediaStore.Downloads.MIME_TYPE, guessMimeType(safeName))
@@ -2432,10 +2432,11 @@ private fun deleteCachedSharedVideoInternal(cacheId: String): Boolean {
                                 values.clear()
                                 values.put(MediaStore.Downloads.IS_PENDING, 0)
                                 contentResolver.update(uri, values, null, null)
-                                return@runCatching true
-                            }
-                        }
-                    }
+                                true
+                            } else false
+                        } else false
+                    }.getOrDefault(false)
+                    if (mediaStoreSuccess) return@runCatching true
                 }
                 @Suppress("DEPRECATION")
                 val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
@@ -2473,23 +2474,25 @@ private fun deleteCachedSharedVideoInternal(cacheId: String): Boolean {
             return runCatching {
                 val token = UUID.randomUUID().toString()
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    val uri = runCatching {
+                    val mediaStoreToken = runCatching {
                         val values = ContentValues().apply {
                             put(MediaStore.Downloads.DISPLAY_NAME, safeName)
                             put(MediaStore.Downloads.MIME_TYPE, guessMimeType(safeName))
                             put(MediaStore.Downloads.IS_PENDING, 1)
                         }
-                        contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                        val uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                        if (uri != null) {
+                            val stream = contentResolver.openOutputStream(uri)
+                            if (stream != null) {
+                                chunkedFileWrites[token] = ChunkedFileWrite(uri, null, stream)
+                                token
+                            } else {
+                                contentResolver.delete(uri, null, null)
+                                null
+                            }
+                        } else null
                     }.getOrNull()
-                    if (uri != null) {
-                        val stream = contentResolver.openOutputStream(uri)
-                        if (stream != null) {
-                            chunkedFileWrites[token] = ChunkedFileWrite(uri, null, stream)
-                            return@runCatching token
-                        } else {
-                            contentResolver.delete(uri, null, null)
-                        }
-                    }
+                    if (!mediaStoreToken.isNullOrEmpty()) return@runCatching mediaStoreToken
                 }
                 @Suppress("DEPRECATION")
                 val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
@@ -2755,7 +2758,7 @@ private fun deleteCachedSharedVideoInternal(cacheId: String): Boolean {
             if (!isTrustedShellPage() || !java.security.MessageDigest.isEqual(nonce.toByteArray(Charsets.UTF_8), bridgeNonce.toByteArray(Charsets.UTF_8))) {
                 return org.json.JSONObject().put("ok", false).put("error", "Untrusted native bridge caller").toString()
             }
-            if (argsJson.length > 8_000_000) {
+            if (argsJson.length > 32_000_000) {
                 return org.json.JSONObject().put("ok", false).put("error", "Native bridge payload too large").toString()
             }
             return try {

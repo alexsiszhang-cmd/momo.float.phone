@@ -199,11 +199,17 @@ async function downloadFileInternal(blob: Blob, filename: string, options: Downl
                 setTimeout(() => URL.revokeObjectURL(url), 1000);
                 return;
             }
-            emitDownloadNotice("error", `${filename} 保存失败：Android 原生保存接口返回失败，请检查存储空间和文件权限。`);
+            emitDownloadNotice("info", `${filename}：尝试原生桥保存失败，已自动转为浏览器下载备用通道…`);
         } catch (error) {
-            emitDownloadNotice("error", `${filename} 保存失败：${error instanceof Error ? error.message : "读取或写入文件时发生错误"}`);
+            emitDownloadNotice("info", `${filename}：原生桥保存异常，已自动转为浏览器下载备用通道…`);
         }
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        try {
+            anchorDownload();
+        } catch (err) {
+            emitDownloadNotice("error", `${filename} 下载失败：${err instanceof Error ? err.message : "读取或写入文件时发生错误"}`);
+        } finally {
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
         return;
     }
 
